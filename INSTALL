@@ -1,0 +1,10 @@
+To build and install the project, run:
+
+```bash
+ $ mkdir build
+ $ cd build
+ $ cmake ..
+ $ make
+ $ sudo make install
+```
+
