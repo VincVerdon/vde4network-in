@@ -65,7 +65,8 @@ static gid_t mgmt_group = -1;
 
 static char *mgmt_socket = NULL;
 // VV 20260217 update info
-static char header[]="VDE switch V.%s\n(C) Virtual Square Team (coord. R. Davoli) 2005,2006,2007 - GPLv2\n - modified for Network-In! project by V. Verdon (network-in.vverdon.fr)";
+static char header[]="VDE switch VDE4Network-In! V. %s for Network-In! simulator\n"
+		"(C) Virtual Square Team (coord. R. Davoli) 2005,2006,2007 - GPLv2\n";
 static char prompt[]="\nvde$ ";
 
 static struct comlist *clh=NULL;
@@ -308,8 +309,6 @@ static int help(FILE *fd,char *arg)
 
 static int handle_cmd(int type,int fd,char *inbuf)
 {
-	//VV 20251212
-	printlog(LOG_INFO,"ICI");
 	struct comlist *p;
 	int rv=ENOSYS;
 	while (*inbuf == ' ' || *inbuf == '\t') inbuf++;
@@ -390,27 +389,16 @@ static int runscript(int fd,char *path)
 				write(fd,scriptprompt,strlen(scriptprompt));
 				free(scriptprompt);
 			}
-			handle_cmd(mgmt_data, fd, buf);
+			//VV 20260228 - print log and ignore comment line from config file
+			if (buf[0] != '#') {
+				printlog(LOG_INFO,buf);
+				handle_cmd(mgmt_data, fd, buf);
+			}
+
 		}
 		fclose(f);
 		return 0;
 	}
-}
-
-
-//VV 20260221
-static int vlanwritevlan(int vlan,FILE *fd)
-{
-	printoutc(fd,"vlan/create %04d",vlan);
-	return 0;
-}
-
-//VV 20260221
-static int vlanwriteconfig(FILE *fd)
-{
-	bac_FORALLFUN(validvlan,NUMOFVLAN,vlanwritevlan,fd);
-
-	return 0;
 }
 
 
@@ -429,20 +417,22 @@ static int savescript(FILE *fd, char *path)
 		strcpy(filepath, defaultsavefile);
 	}
 
-	//printoutc(fd,"file save path %s\n", "Un essai");
 	f=fopen(filepath,"w");
 	char *mess=NULL;
-	asprintf(&mess,"Saved switch configuration in %s", filepath);
-	printlog(LOG_INFO, mess);
-	free(mess);
 
 	if (f) {
-		printoutc(f, "Existe");
-		vlanwriteconfig(f);
+		asprintf(&mess,"Save configuration in file %s", filepath);
+		printlog(LOG_INFO, mess);
+		//writing conf
+		writemainconfig(f);
+		writevlanconfig(f);
+		writeportconfig(f);
 		fclose(f);
 	} else {
-		printlog(LOG_WARNING,"File creation impossible %s",strerror(errno));
+		asprintf(&mess,"Save file creation impossible %s", filepath);
+		printlog(LOG_WARNING, mess);
 	}
+	free(mess);
 	return 0;
 }
 
@@ -537,7 +527,7 @@ static void handle_io(unsigned char type,int fd,int revents,void *private_data)
 			printlog(LOG_WARNING,"mgmt accept %s",strerror(errno));
 			return;
 		} else {
-			// 20251212
+			// VV 20251212
 			printlog(LOG_INFO,"Connexion OK");
 		}
 		if(fcntl(new, F_SETFL, O_NONBLOCK) < 0){
@@ -1066,7 +1056,7 @@ static void sighupmgmt(int signo)
 void start_consmgmt(void)
 {
 	//VV 20251211
-	printlog(LOG_WARNING,"Connection from terminal");
+	printlog(LOG_INFO,"Connection from terminal");
 	swmi.swmname="console-mgmt";
 	swmi.swmnopts=Nlong_options;
 	swmi.swmopts=long_options;

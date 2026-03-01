@@ -174,19 +174,19 @@ static int alloc_port(unsigned int portno)
 	}
 }
 
-static void free_port(unsigned int portno)
+/*static void free_port(unsigned int portno)
 {
 	if (portno < numports) {
 		struct port *port=portv[portno];
 		if (port != NULL && port->ep==NULL) {
 			portv[portno]=NULL;
 			int i;
-			/* delete completely the port. all vlan defs zapped */
+			// delete completely the port. all vlan defs zapped
 			bac_FORALL(validvlan,NUMOFVLAN,ba_clr(vlant[i].table,portno),i);
 			free(port);
 		}
 	}
-}
+}*/
 
 #ifdef VDE_BIONIC
   static inline int user_belongs_to_group(uid_t uid, gid_t gid) { return 0; }
@@ -743,10 +743,10 @@ static int showinfo(FILE *fd)
 	return 0;
 }
 
-static int portsetnumports(int val)
+/*static int portsetnumports(int val)
 {
 	if(val > 0) {
-		/*resize structs*/
+		//resize structs
 		int i;
 		for(i=val;i<numports;i++)
 			if(portv[i] != NULL)
@@ -795,7 +795,7 @@ static int portsetnumports(int val)
 		return 0;
 	} else 
 		return EINVAL;
-}
+}*/
 
 static int portallocatable(char *arg)
 {
@@ -813,7 +813,7 @@ static int portallocatable(char *arg)
 	return 0;
 }
 
-static int portsetuser(char *arg)
+/*static int portsetuser(char *arg)
 {
 	int port;
 	char *portuid=arg;
@@ -836,9 +836,9 @@ static int portsetuser(char *arg)
 	else
 		return EINVAL;
 	return 0;
-}
+}*/
 
-static int portsetgroup(char *arg)
+/*static int portsetgroup(char *arg)
 {
 	int port;
 	char *portgid=arg;
@@ -861,9 +861,9 @@ static int portsetgroup(char *arg)
 	else
 		return EINVAL;
 	return 0;
-}
+}*/
 
-static int portremove(int val)
+/*static int portremove(int val)
 {
 	if (val <0 || val>=numports)
 		return EINVAL;
@@ -873,7 +873,7 @@ static int portremove(int val)
 		return EADDRINUSE;
 	free_port(val);
 	return 0;
-}
+}*/
 
 static int portcreate(int val)
 {
@@ -889,7 +889,7 @@ static int portcreate(int val)
 	return 0;
 }
 
-static int portcreateauto(FILE* fd)
+/*static int portcreateauto(FILE* fd)
 {
 	int port = alloc_port(0);
 
@@ -899,7 +899,7 @@ static int portcreateauto(FILE* fd)
 	portv[port]->flag |= NOTINPOOL;
 	printoutc(fd, "Port %04d", port);
 	return 0;
-}
+}*/
 
 static int epclose(char *arg)
 {
@@ -973,10 +973,11 @@ static int print_port(FILE *fd,int i,int inclinactive)
 				i,portv[i]->vlanuntag,
 				portv[i]->ep?"":"IN",
 				(portv[i]->flag & NOTINPOOL)?"NOT ":"");
-		printoutc(fd," Current User: %s Access Control: (User: %s - Group: %s)", 
+		// VV 20260227
+		/*printoutc(fd," Current User: %s Access Control: (User: %s - Group: %s)",
 				port_getuser(portv[i]->curuser),
 				port_getuser(portv[i]->user), 
-				port_getgroup(portv[i]->group));
+				port_getgroup(portv[i]->group));*/
 #ifdef PORTCOUNTERS
 		printoutc(fd," IN:  pkts %10lld          bytes %20lld",portv[i]->pktsin,portv[i]->bytesin);
 		printoutc(fd," OUT: pkts %10lld          bytes %20lld",portv[i]->pktsout,portv[i]->bytesout);
@@ -1026,6 +1027,7 @@ static int print_ptableall(FILE *fd,char *arg)
 		return 0;
 	}
 }
+
 
 #ifdef PORTCOUNTERS
 static void portzerocounter(int i)
@@ -1162,7 +1164,7 @@ static int vlanremove(int vlan)
 		return EINVAL;
 }
 
-static int vlanaddport(char *arg)
+static int vlanaddtrunkport(char *arg)
 {
 	int port,vlan;
 	if (sscanf(arg,"%i %i",&vlan,&port) != 2)
@@ -1182,7 +1184,7 @@ static int vlanaddport(char *arg)
 	return 0;
 }
 
-static int vlandelport(char *arg)
+static int vlandeltrunkport(char *arg)
 {
 	int port,vlan;
 	if (sscanf(arg,"%i %i",&vlan,&port) != 2)
@@ -1268,13 +1270,41 @@ static int vlanprint(FILE *fd,char *arg)
 	return 0;
 }
 
+/*
+ * VV test
+static void print_vlan_inf(int vlan,FILE *fd, int i) {
+
+	if (portv[i]->vlanuntag != vlan) {
+		printoutc(fd," -- Port %04d - tagged (TRUNK) - active=%d - status=%s",
+			i,
+			portv[i]->ep != NULL,
+			STRSTATUS(i,vlan)
+		);
+	} else {
+		printoutc(fd," -- Port %04d - untagged - active=%d - status=%s",
+			i,
+			portv[i]->vlanuntag != vlan,
+			portv[i]->ep != NULL,
+			STRSTATUS(i,vlan)
+		);
+	}
+
+
+}
+*/
+
+// VV 20260227 Display modification
 static void vlanprintelem(int vlan,FILE *fd)
 {
 	int i;
 	printoutc(fd,"VLAN %04d",vlan);
 	ba_FORALL(vlant[vlan].table,numports,
-			printoutc(fd," -- Port %04d tagged=%d active=%d status=%s",
-				i, portv[i]->vlanuntag != vlan, portv[i]->ep != NULL, STRSTATUS(i,vlan)),i);
+		printoutc(fd," -- Port %04d - %s - active=%d - status=%s",
+			i,
+			(portv[i]->vlanuntag != vlan)?"tagged (TRUNK)":"untagged      ", //VV
+			portv[i]->ep != NULL,
+			STRSTATUS(i,vlan)
+	),i);
 }
 
 static int vlanprintall(FILE *fd,char *arg)
@@ -1347,6 +1377,7 @@ char *port_descr(int portno, int epn) {
 	}
 }
 
+//VV 20260228 remove entries - rename vlan/addport to vlan/addtrunkport
 static struct comlist cl[]={
 	{"port","============","PORT STATUS MENU",NULL,NOARG},
 	{"port/showinfo","","show port info",showinfo,NOARG|WITHFILE},
@@ -1373,8 +1404,8 @@ static struct comlist cl[]={
 	{"vlan","============","VLAN MANAGEMENT MENU",NULL,NOARG},
 	{"vlan/create","N","create the VLAN with tag N",vlancreate,INTARG},
 	{"vlan/remove","N","remove the VLAN with tag N",vlanremove,INTARG},
-	{"vlan/addport","N PORT","add port to the vlan N (tagged)",vlanaddport,STRARG},
-	{"vlan/delport","N PORT","add port to the vlan N (tagged)",vlandelport,STRARG},
+	{"vlan/addtrunkport","N PORT","add trunk port to the vlan N",vlanaddtrunkport,STRARG},
+	{"vlan/deltrunkport","N PORT","del trunk port to the vlan N",vlandeltrunkport,STRARG},
 	{"vlan/print","[N]","print the list of defined vlan",vlanprint,STRARG|WITHFILE},
 	{"vlan/allprint","[N]","print the list of defined vlan (including inactive port)",vlanprintall,STRARG|WITHFILE},
 };
@@ -1404,7 +1435,6 @@ void port_init(int initnumports)
 
 	//VV 20260221 - automatic port initialization at start
 	for(int i = 0; i<numports; i++) {
-
 		char *mess=NULL;
 		asprintf(&mess,"init port %d", i);
 		printlog(LOG_INFO, mess);
@@ -1413,3 +1443,60 @@ void port_init(int initnumports)
 	}
 
 }
+
+
+//VV 20260221
+static int vlanwritevlancreate(int vlan,FILE *fd)
+{
+	printoutc(fd,"vlan/create %d",vlan);
+	return 0;
+}
+
+//VV 20260227
+static int vlanwriteonetrunk(int vlan, int port, int tagged, FILE *fd)
+{
+	if (tagged) {
+		printoutc(fd,"vlan/addtrunkport %d %d",vlan, port);
+	}
+	return 0;
+}
+
+// VV 20260227 Display modification
+static void vlanwritetrunkcreate(int vlan,FILE *fd)
+{
+	int i;
+		ba_FORALL(vlant[vlan].table,numports,
+			vlanwriteonetrunk(vlan, i, portv[i]->vlanuntag != vlan, fd),i);
+
+}
+
+
+//VV 20260227
+int writemainconfig(FILE *fd)
+{
+	printoutc(fd,"port/sethub %s",(pflag & HUB_TAG)?"1":"0");
+	return 0;
+}
+
+
+//VV 20260221
+int writevlanconfig(FILE *fd)
+{
+	bac_FORALLFUN(validvlan,NUMOFVLAN,vlanwritevlancreate,fd);
+
+	return 0;
+}
+
+//VV 20260222
+int writeportconfig(FILE *fd)
+{
+	int i;
+	for (i=0;i<numports;i++) {
+		printoutc(fd,"port/setvlan %d %d", i, portv[i]->vlanuntag);
+	}
+	bac_FORALLFUN(validvlan,NUMOFVLAN,vlanwritetrunkcreate,fd);
+
+	return 0;
+}
+
+

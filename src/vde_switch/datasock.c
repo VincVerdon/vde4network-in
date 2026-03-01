@@ -529,8 +529,10 @@ static int showinfo(FILE *fd)
 }
 
 static struct comlist cl[]={
+		/*
 	{"ds","============","DATA SOCKET MENU",NULL,NOARG},
 	{"ds/showinfo","","show ds info",showinfo,NOARG|WITHFILE},
+	*/
 };
 
 static void delep (int fd_ctl, int fd_data, void *descr)

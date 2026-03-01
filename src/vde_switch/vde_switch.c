@@ -343,9 +343,9 @@ static void Usage(void) {
 static void version(void)
 { 
 	printf(
-			"VDE " PACKAGE_VERSION "\n"
-			"Copyright 2003,...,2011 Renzo Davoli\n"
-			"some code from uml_switch Copyright (C) 2001, 2002 Jeff Dike and others\n"
+			"VDE switch Modified version for Network-In! project by V. Verdon (https://network-in.vverdon.fr)\n"
+			"VDE4Network-In! " PACKAGE_VERSION " Copyright 2026\n"
+			"VDE Copyright 2003,...,2011 Renzo Davoli\n"
 			"VDE comes with NO WARRANTY, to the extent permitted by law.\n"
 			"You may redistribute copies of VDE under the terms of the\n"
 			"GNU General Public License v2.\n"

@@ -86,3 +86,10 @@ int port_getcost(int port);
 #endif
 
 #endif
+
+
+// VV functions declaration
+int writemainconfig(FILE *fd);
+int writevlanconfig(FILE *fd);
+int writeportconfig(FILE *fd);
+
