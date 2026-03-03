@@ -1,4 +1,6 @@
-/* Copyright 2005 Renzo Davoli - VDE-2
+/* VDE4Network-Inc is forked from VDE2 and adapted for Network-In! Simulator project
+ * Copyright V. Verdon - Version 20260301
+ * Initial Copyright Copyright 2005 Renzo Davoli - VDE-2
  * --pidfile/-p and cleanup management by Mattia Belletti (C) 2004.
  * Licensed under the GPLv2
  * Modified by Ludovico Gardenghi 2005
@@ -521,12 +523,13 @@ static void init(void)
 	add_fd(connect_fd,ctl_type,NULL);
 }
 
+/*
 static int showinfo(FILE *fd)
 {
 	printoutc(fd,"ctl dir %s",ctl_socket);
 	printoutc(fd,"std mode 0%03o",mode);
 	return 0;
-}
+}*/
 
 static struct comlist cl[]={
 		/*

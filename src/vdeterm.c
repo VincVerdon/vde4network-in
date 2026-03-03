@@ -99,7 +99,9 @@ static char *copy_header_prompt (int vdefd,int termfd,char *sock)
 				while (n>0 && buf[n] !='\n')
 					n--;
 				write(termfd,buf,n+1);
-				asprintf(&prompt,"%s[%s]: ",buf+n+1,sock);
+				// Prompt displayed in terminal
+				asprintf(&prompt,"%s># ",buf+n+1);
+				//asprintf(&prompt,"%s[%s]: ",buf+n+1,sock);
 				return prompt;
 			} else
 				write(termfd,buf,n);
@@ -157,8 +159,11 @@ int main(int argc,char *argv[])
 			if (vdehist_term_to_mgmt(vdehst) != 0)
 				exit(0);
 		}
-		if(pfd[1].revents & POLLIN)
+		if(pfd[1].revents & POLLIN) {
+			// VV 20260303 - add line to update prompt with new name
+			prompt=copy_header_prompt(fd,STDOUT_FILENO,argv[1]);
 			vdehist_mgmt_to_term(vdehst);
+		}
 		//printf("POLL RETURN!\n");
 	}
 }

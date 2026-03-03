@@ -1,8 +1,9 @@
-/* Copyright 2005,2006,2007 Renzo Davoli - VDE-2
+/* VDE4Network-Inc is forked from VDE2 and adapted for Network-In! Simulator project
+ * Copyright V. Verdon - Version 20260301
+ * Initial Copyright 2005,2006,2007 Renzo Davoli - VDE-2
  * 2007 co-authors Ludovico Gardenghi, Filippo Giunchedi, Luca Bigliardi
  * --pidfile/-p and cleanup management by Mattia Belletti (C) 2004.
  * Licensed under the GPLv2
- * Modified by V. Verdon for Network-In! Simulator project - 20260217
  */
 
 #define _GNU_SOURCE
@@ -27,6 +28,7 @@
 #include <getopt.h>
 #include <dlfcn.h>
 #include <limits.h>
+#include <time.h>
 
 #include <config.h>
 #include <vde.h>
@@ -51,10 +53,10 @@ static char pidfile_path[PATH_MAX];
 // VV 20251211 add logfile savefile and defaultsavefile
 static char *logfile = NULL;
 static char *savefile = NULL;
-static char *defaultsavefile = "/tmp/switch.save";
+static char *defaultsavefile = "/tmp/switch.conf";
+
 static char last_message[500] = "";
 static char severity_text[8][6] = {"Emerg","Alert","Crit","Error","Warn","Notice","Info","Debug"};
-
 static int daemonize = 0;
 static int nostdin = 0;
 static unsigned int console_type=-1;
@@ -62,12 +64,18 @@ static unsigned int mgmt_ctl=-1;
 static unsigned int mgmt_data=-1;
 static int mgmt_mode = 0600;
 static gid_t mgmt_group = -1;
-
 static char *mgmt_socket = NULL;
+
 // VV 20260217 update info
-static char header[]="VDE switch VDE4Network-In! V. %s for Network-In! simulator\n"
+static char header[]="VDE4Network-In! switch v. %s for Network-In! simulator\n"
+		"(C) V. Verdon 2026 - Modified from VDE2 switch\n"
 		"(C) Virtual Square Team (coord. R. Davoli) 2005,2006,2007 - GPLv2\n";
-static char prompt[]="\nvde$ ";
+
+// VV 20260301 add name
+
+static char *switchname = "unnamed";
+// VV 20260303 - Definition of prompt sent to vdeterm
+static char *prompt;
 
 static struct comlist *clh=NULL;
 static struct comlist **clt=&clh;
@@ -88,6 +96,16 @@ static struct dbgcl dl[]= {
 static struct plugin *pluginh=NULL;
 static struct plugin **plugint=&pluginh;
 #endif
+
+
+/* VV 20260303
+ * Init or update prompt with the switch name
+ */
+void init_prompt()
+{
+	asprintf(&prompt, "\n%s$ ", switchname);
+}
+
 
 void addcl(int ncl,struct comlist *cl)
 {
@@ -325,13 +343,13 @@ static int handle_cmd(int type,int fd,char *inbuf)
 			if (p->type & WITHFD) {
 				if (fd >= 0) {
 					if (p->type & WITHFILE) {
-						printoutc(f,"0000 DATA END WITH '.'");
+						//printoutc(f,"0000 DATA END WITH '.'");
 						switch(p->type & ~(WITHFILE | WITHFD)){
 							case NOARG: rv=p->doit(f,fd); break;
 							case INTARG: rv=p->doit(f,fd,atoi(inbuf)); break;
 							case STRARG: rv=p->doit(f,fd,inbuf); break;
 						}
-						printoutc(f,".");
+						//printoutc(f,".");
 					} else {
 						switch(p->type & ~WITHFD){
 							case NOARG: rv=p->doit(fd); break;
@@ -342,13 +360,13 @@ static int handle_cmd(int type,int fd,char *inbuf)
 				} else
 					rv = EBADF;
 			} else if (p->type & WITHFILE) {
-				printoutc(f,"0000 DATA END WITH '.'");
+				//printoutc(f,"0000 DATA END WITH '.'");
 				switch(p->type & ~WITHFILE){
 					case NOARG: rv=p->doit(f); break;
 					case INTARG: rv=p->doit(f,atoi(inbuf)); break;
 					case STRARG: rv=p->doit(f,inbuf); break;
 				}
-				printoutc(f,".");
+				//printoutc(f,".");
 			} else {
 				switch(p->type){
 					case NOARG: rv=p->doit(); break;
@@ -357,18 +375,21 @@ static int handle_cmd(int type,int fd,char *inbuf)
 				}
 			}
 		}
+
 		if (rv == 0) {
 			printoutc(f,"1000 Success");
 			//VV 20251212
 			printlog(LOG_INFO,"Success command");
+
 		} else if (rv > 0) {
 			printoutc(f,"1%03d %s",rv,strerror(rv));
 			//VV 20251212
 			printlog(LOG_WARNING,"Error 1%03d %s",rv,strerror(rv));
 		}
 		fclose(f);
-		if (fd >= 0)
+		if (fd >= 0) {
 			write(fd,outbuf,outbufsize);
+		}
 		free(outbuf);
 	}
 	return rv;
@@ -385,7 +406,9 @@ static int runscript(int fd,char *path)
 			if (strlen(buf) > 1 && buf[strlen(buf)-1]=='\n') buf[strlen(buf)-1]= '\0';
 			if (fd >= 0) {
 				char *scriptprompt=NULL;
-				asprintf(&scriptprompt,"vde[%s]: %s\n",path,buf);
+				// VV 20260301
+				asprintf(&scriptprompt,"vde[%s]: %s\n", switchname, buf);
+				//asprintf(&scriptprompt,"vde[%s]: %s\n",path,buf);
 				write(fd,scriptprompt,strlen(scriptprompt));
 				free(scriptprompt);
 			}
@@ -402,7 +425,9 @@ static int runscript(int fd,char *path)
 }
 
 
-// VV 20260221
+/* VV 20260303
+ * Save configuration in file
+ */
 static int savescript(FILE *fd, char *path)
 {
 
@@ -475,7 +500,7 @@ static int debugdel(int fd,char *arg);
 static char *EOS="9999 END OF SESSION";
 static void handle_io(unsigned char type,int fd,int revents,void *private_data)
 {
-	char buf[MAXCMD];
+	char buf[MAXCMD * 2];
 	if (type != mgmt_ctl) {
 		int n=0;
 
@@ -501,9 +526,10 @@ static void handle_io(unsigned char type,int fd,int revents,void *private_data)
 			buf[n]=0;
 			if (n>0 && buf[n-1] == '\n') buf[n-1] = 0;
 			cmdout=handle_cmd(type,(type==console_type)?STDOUT_FILENO:fd,buf);
-			if (cmdout >= 0)
+			if (cmdout >= 0) {
+				// Prompt on local console
 				write(fd,prompt,strlen(prompt));
-			else {
+			} else {
 				if(type==mgmt_data) {
 					write(fd,EOS,strlen(EOS));
 #ifdef DEBUGOPT
@@ -538,8 +564,10 @@ static void handle_io(unsigned char type,int fd,int revents,void *private_data)
 
 		add_fd(new,mgmt_data,NULL);
 		EVENTOUT(MGMTPORTNEW,new);
-		snprintf(buf,MAXCMD,header,PACKAGE_VERSION);
+		//print header in management console
+		snprintf(buf,MAXCMD * 2,header,PACKAGE_VERSION);
 		write(new,buf,strlen(buf));
+		// Send prompt on vdeterm
 		write(new,prompt,strlen(prompt));
 	}
 }
@@ -1025,11 +1053,30 @@ static int plugindel(char *arg) {
 }
 #endif
 
+static int setswitchname(FILE *fd, char *arg)
+{
+	//char *switchname = malloc(strlen(arg) + 1);
+	//strcpy(switchname, arg);
+	asprintf(&switchname, "%s", arg);
+
+
+	char *mess=NULL;
+	asprintf(&mess,"new name = %s", switchname);
+	printlog(LOG_INFO, mess);
+	printoutc(fd,"name = %s",switchname);
+
+	// update
+	init_prompt();
+
+	return 0;
+}
+
 static struct comlist cl[]={
 	{"help","[arg]","Help (limited to arg when specified)",help,STRARG | WITHFILE},
 	{"logout","","logout from this mgmt terminal",vde_logout,NOARG},
 	{"shutdown","","shutdown of the switch",vde_shutdown,NOARG},
 	{"showinfo","","show switch version and info",showinfo,NOARG|WITHFILE},
+	{"hostname","name","set switch name",setswitchname, STRARG | WITHFILE},
 	{"load","path","load a configuration script",runscript,STRARG|WITHFD},
 	{"save","path","save configuration in file (default file if not completed)",savescript,STRARG|WITHFD},
 #ifdef DEBUGOPT
@@ -1074,3 +1121,26 @@ void start_consmgmt(void)
 	signal(SIGHUP,sighupmgmt);
 #endif
 }
+
+//VV 20260227
+int writemainconfig(FILE *fd)
+{
+	time_t now;
+	time(&now);
+	struct tm *t = localtime(&now);
+	char *datetime=NULL;
+	asprintf(&datetime,"%04d-%02d-%02d %02d:%02d:%02d",
+	  t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec);
+
+	printoutc(fd,"# VDE4Network-In! switch configuration");
+	printoutc(fd,"# File generated at %s", datetime);
+	printoutc(fd,"# by VDE4Network-In! version %s", PACKAGE_VERSION);
+	printoutc(fd,"");
+
+	printoutc(fd,"hostname %s",switchname);
+
+	writesethub(fd);
+
+	return 0;
+}
+

@@ -1,4 +1,6 @@
-/* Copyright 2005 Renzo Davoli VDE-2
+/* VDE4Network-Inc is forked from VDE2 and adapted for Network-In! Simulator project
+ * Copyright V. Verdon - Version 20260301
+ * Initial Copyright 2005 Renzo Davoli VDE-2
  * 2008 Luca Saiu (Marionnet project): a better hub implementation
  * Some minor remain from uml_switch Copyright 2002 Yon Uriarte and Jeff Dike
  * Licensed under the GPLv2 
@@ -174,19 +176,6 @@ static int alloc_port(unsigned int portno)
 	}
 }
 
-/*static void free_port(unsigned int portno)
-{
-	if (portno < numports) {
-		struct port *port=portv[portno];
-		if (port != NULL && port->ep==NULL) {
-			portv[portno]=NULL;
-			int i;
-			// delete completely the port. all vlan defs zapped
-			bac_FORALL(validvlan,NUMOFVLAN,ba_clr(vlant[i].table,portno),i);
-			free(port);
-		}
-	}
-}*/
 
 #ifdef VDE_BIONIC
   static inline int user_belongs_to_group(uid_t uid, gid_t gid) { return 0; }
@@ -743,59 +732,6 @@ static int showinfo(FILE *fd)
 	return 0;
 }
 
-/*static int portsetnumports(int val)
-{
-	if(val > 0) {
-		//resize structs
-		int i;
-		for(i=val;i<numports;i++)
-			if(portv[i] != NULL)
-				return EADDRINUSE;
-		portv=realloc(portv,val*sizeof(struct port *));
-		if (portv == NULL) {
-			printlog(LOG_ERR,"Numport resize failed portv %s",strerror(errno));
-			exit(1);
-		}
-		for (i=0;i<NUMOFVLAN;i++) { 
-			if (vlant[i].table) {
-				vlant[i].table=ba_realloc(vlant[i].table,numports,val);
-				if (vlant[i].table == NULL) {
-					printlog(LOG_ERR,"Numport resize failed vlan tables vlan table %s",strerror(errno));
-					exit(1);
-				}
-			}
-			if (vlant[i].bctag) {
-				vlant[i].bctag=ba_realloc(vlant[i].bctag,numports,val);
-				if (vlant[i].bctag == NULL) {
-					printlog(LOG_ERR,"Numport resize failed vlan tables vlan bctag %s",strerror(errno));
-					exit(1);
-				}
-			}
-			if (vlant[i].bcuntag) {
-				vlant[i].bcuntag=ba_realloc(vlant[i].bcuntag,numports,val);
-				if (vlant[i].bcuntag == NULL) {
-					printlog(LOG_ERR,"Numport resize failed vlan tables vlan bctag %s",strerror(errno));
-					exit(1);
-				}
-			}
-			if (vlant[i].notlearning) {
-				vlant[i].notlearning=ba_realloc(vlant[i].notlearning,numports,val);
-				if (vlant[i].notlearning == NULL) {
-					printlog(LOG_ERR,"Numport resize failed vlan tables vlan notlearning %s",strerror(errno));
-					exit(1);
-				}
-			}
-		}
-		for (i=numports;i<val;i++)
-			portv[i]=NULL;
-#ifdef FSTP
-		fstsetnumports(val);
-#endif
-		numports=val;
-		return 0;
-	} else 
-		return EINVAL;
-}*/
 
 static int portallocatable(char *arg)
 {
@@ -813,67 +749,6 @@ static int portallocatable(char *arg)
 	return 0;
 }
 
-/*static int portsetuser(char *arg)
-{
-	int port;
-	char *portuid=arg;
-	struct passwd *pw;
-	while (*portuid != 0 && *portuid == ' ') portuid++;
-	while (*portuid != 0 && *portuid != ' ') portuid++;
-	while (*portuid != 0 && *portuid == ' ') portuid++;
-	if (sscanf(arg,"%i",&port) != 1 || *portuid==0)
-		return EINVAL;
-	if (port < 0 || port >= numports)
-		return EINVAL;
-	if (portv[port] == NULL)
-		return ENXIO;
-	if ((pw=getpwnam(portuid)) != NULL)
-		portv[port]->user=pw->pw_uid;
-	else if (isdigit(*portuid)) 
-		portv[port]->user=atoi(portuid);
-	else if (strcmp(portuid,"NONE")==0 || strcmp(portuid,"ANY")==0) 
-		portv[port]->user= -1;
-	else
-		return EINVAL;
-	return 0;
-}*/
-
-/*static int portsetgroup(char *arg)
-{
-	int port;
-	char *portgid=arg;
-	struct group *gr;
-	while (*portgid != 0 && *portgid == ' ') portgid++;
-	while (*portgid != 0 && *portgid != ' ') portgid++;
-	while (*portgid != 0 && *portgid == ' ') portgid++;
-	if (sscanf(arg,"%i",&port) != 1 || *portgid==0)
-		return EINVAL;
-	if (port < 0 || port >= numports)
-		return EINVAL;
-	if (portv[port] == NULL)
-		return ENXIO;
-	if ((gr=getgrnam(portgid)) != NULL)
-		portv[port]->group=gr->gr_gid;
-	else if (isdigit(*portgid)) 
-		portv[port]->group=atoi(portgid);
-	else if (strcmp(portgid,"NONE")==0 || strcmp(portgid,"ANY")==0) 
-		portv[port]->group= -1;
-	else
-		return EINVAL;
-	return 0;
-}*/
-
-/*static int portremove(int val)
-{
-	if (val <0 || val>=numports)
-		return EINVAL;
-	if (portv[val] == NULL)
-		return ENXIO;
-	if (portv[val]->ep != NULL)
-		return EADDRINUSE;
-	free_port(val);
-	return 0;
-}*/
 
 static int portcreate(int val)
 {
@@ -888,18 +763,6 @@ static int portcreate(int val)
 	portv[port]->flag |= NOTINPOOL;
 	return 0;
 }
-
-/*static int portcreateauto(FILE* fd)
-{
-	int port = alloc_port(0);
-
-	if (port < 0)
-		return ENOSPC;
-
-	portv[port]->flag |= NOTINPOOL;
-	printoutc(fd, "Port %04d", port);
-	return 0;
-}*/
 
 static int epclose(char *arg)
 {
@@ -931,40 +794,10 @@ static int epqlen(char *arg)
 }
 #endif
 
-static char *port_getuser(uid_t uid)
-{
-	static char buf[6];
-	struct passwd *pw;
-	if (uid == -1) 
-		return "NONE";
-	else {
-		pw=getpwuid(uid);
-		if (pw != NULL)
-			return pw->pw_name;
-		else {
-			sprintf(buf,"%d",uid);
-			return buf;
-		}
-	}
-}
 
-static char *port_getgroup(gid_t gid)
-{
-	static char buf[6];
-	struct group *gr;
-	if (gid == -1) 
-		return "NONE";
-	else {
-		gr=getgrgid(gid);
-		if (gr != NULL)
-			return gr->gr_name;
-		else {
-			sprintf(buf,"%d",gid);
-			return buf;
-		}
-	}
-}
-
+/*Prints port configuration in console
+ * return : 0 OR ERR code
+ */
 static int print_port(FILE *fd,int i,int inclinactive)
 {
 	struct endpoint *ep;
@@ -973,11 +806,7 @@ static int print_port(FILE *fd,int i,int inclinactive)
 				i,portv[i]->vlanuntag,
 				portv[i]->ep?"":"IN",
 				(portv[i]->flag & NOTINPOOL)?"NOT ":"");
-		// VV 20260227
-		/*printoutc(fd," Current User: %s Access Control: (User: %s - Group: %s)",
-				port_getuser(portv[i]->curuser),
-				port_getuser(portv[i]->user), 
-				port_getgroup(portv[i]->group));*/
+
 #ifdef PORTCOUNTERS
 		printoutc(fd," IN:  pkts %10lld          bytes %20lld",portv[i]->pktsin,portv[i]->bytesin);
 		printoutc(fd," OUT: pkts %10lld          bytes %20lld",portv[i]->pktsout,portv[i]->bytesout);
@@ -994,6 +823,9 @@ static int print_port(FILE *fd,int i,int inclinactive)
 		return ENXIO;
 }
 
+/*Prints all ports configuration in console
+ * return : 0 or ERR code
+ */
 static int print_ptable(FILE *fd,char *arg)
 {
 	int i;
@@ -1059,6 +891,10 @@ static int portresetcounters(char *arg)
 }
 #endif
 
+/*Transform switch in hub
+ * val = 1 >> hub
+ * val = 0 >> switch (default value)
+ */
 static int portsethub(int val)
 {
 	if (val) {
@@ -1164,6 +1000,9 @@ static int vlanremove(int vlan)
 		return EINVAL;
 }
 
+/* Add a trunk port for a vlan
+ * Renamed from initial function vlanaddport() - VV
+ */
 static int vlanaddtrunkport(char *arg)
 {
 	int port,vlan;
@@ -1184,6 +1023,9 @@ static int vlanaddtrunkport(char *arg)
 	return 0;
 }
 
+/* Delete a trunk port from a vlan
+ * Renamed from initial function vlandelport() - VV
+ */
 static int vlandeltrunkport(char *arg)
 {
 	int port,vlan;
@@ -1211,6 +1053,7 @@ static int vlandeltrunkport(char *arg)
 	((ba_check(vlant[(V)].notlearning,(PN))) ? "Discarding" : \
 	 (ba_check(vlant[(V)].bctag,(PN)) || ba_check(vlant[(V)].bcuntag,(PN))) ? \
 	 "Forwarding" : "Learning")
+
 
 static void vlanprintactive(int vlan,FILE *fd)
 {
@@ -1270,28 +1113,6 @@ static int vlanprint(FILE *fd,char *arg)
 	return 0;
 }
 
-/*
- * VV test
-static void print_vlan_inf(int vlan,FILE *fd, int i) {
-
-	if (portv[i]->vlanuntag != vlan) {
-		printoutc(fd," -- Port %04d - tagged (TRUNK) - active=%d - status=%s",
-			i,
-			portv[i]->ep != NULL,
-			STRSTATUS(i,vlan)
-		);
-	} else {
-		printoutc(fd," -- Port %04d - untagged - active=%d - status=%s",
-			i,
-			portv[i]->vlanuntag != vlan,
-			portv[i]->ep != NULL,
-			STRSTATUS(i,vlan)
-		);
-	}
-
-
-}
-*/
 
 // VV 20260227 Display modification
 static void vlanprintelem(int vlan,FILE *fd)
@@ -1381,16 +1202,9 @@ char *port_descr(int portno, int epn) {
 static struct comlist cl[]={
 	{"port","============","PORT STATUS MENU",NULL,NOARG},
 	{"port/showinfo","","show port info",showinfo,NOARG|WITHFILE},
-	/*{"port/setnumports","N","set the number of ports",portsetnumports,INTARG},*/
-	/*{"port/setmacaddr","MAC","set the switch MAC address",setmacaddr,STRARG},*/
 	{"port/sethub","0/1","1=HUB 0=switch",portsethub,INTARG},
 	{"port/setvlan","N VLAN","set port VLAN (untagged)",portsetvlan,STRARG},
-	/*{"port/createauto","","create a port with an automatically allocated id (inactive|notallocatable)",portcreateauto,NOARG|WITHFILE},*/
-	/*{"port/create","N","create the port N (inactive|notallocatable)",portcreate,INTARG},*/
-	/*{"port/remove","N","remove the port N",portremove,INTARG},*/
 	{"port/allocatable","N 0/1","Is the port allocatable as unnamed? 1=Y 0=N",portallocatable,STRARG},
-	/*{"port/setuser","N user","access control: set user",portsetuser,STRARG},
-	{"port/setgroup","N user","access control: set group",portsetgroup,STRARG},*/
 	{"port/epclose","N ID","remove the endpoint port N/id ID",epclose,STRARG},
 #ifdef VDE_PQ2
 	{"port/defqlen","LEN","set the default queue length for new ports",defqlen,INTARG},
@@ -1470,15 +1284,6 @@ static void vlanwritetrunkcreate(int vlan,FILE *fd)
 
 }
 
-
-//VV 20260227
-int writemainconfig(FILE *fd)
-{
-	printoutc(fd,"port/sethub %s",(pflag & HUB_TAG)?"1":"0");
-	return 0;
-}
-
-
 //VV 20260221
 int writevlanconfig(FILE *fd)
 {
@@ -1499,4 +1304,10 @@ int writeportconfig(FILE *fd)
 	return 0;
 }
 
+//VV 20260303
+int writesethub(FILE *fd)
+{
+	printoutc(fd,"port/sethub %s",(pflag & HUB_TAG)?"1":"0");
+	return 0;
+}
 

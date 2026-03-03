@@ -1,4 +1,6 @@
-/* Copyright 2005 Renzo Davoli
+/* VDE4Network-Inc is forked from VDE2 and adapted for Network-In! Simulator project
+ * Copyright V. Verdon - Version 20260301
+ * Initial Copyright Copyright 2005 Renzo Davoli
  * Copyright 2002 Jeff Dike
  * Licensed under the GPLv2
  */
@@ -89,7 +91,7 @@ int port_getcost(int port);
 
 
 // VV functions declaration
-int writemainconfig(FILE *fd);
 int writevlanconfig(FILE *fd);
 int writeportconfig(FILE *fd);
+int writesethub(FILE *fd);
 

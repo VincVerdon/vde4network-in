@@ -89,3 +89,9 @@ struct plugin {
 	struct plugin *next;
 };
 #endif
+
+
+// VV functions declaration
+void init_prompt();
+int writemainconfig(FILE *fd);
+

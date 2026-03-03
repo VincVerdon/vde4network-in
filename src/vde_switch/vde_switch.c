@@ -1,4 +1,6 @@
-/* Copyright 2005 Renzo Davoli VDE-2
+/* VDE4Network-Inc is forked from VDE2 and adapted for Network-In! Simulator project
+ * Copyright V. Verdon - Version 20260301
+ * Initial Copyright 2005 Renzo Davoli VDE-2
  * Licensed under the GPL
  * --pidfile/-p and cleanup management by Mattia Belletti.
  * some code remains from uml_switch Copyright 2001, 2002 Jeff Dike and others
@@ -343,8 +345,8 @@ static void Usage(void) {
 static void version(void)
 { 
 	printf(
-			"VDE switch Modified version for Network-In! project by V. Verdon (https://network-in.vverdon.fr)\n"
-			"VDE4Network-In! " PACKAGE_VERSION " Copyright 2026\n"
+			"VDE4Network-In is a VDE2 switch forked and modified for Network-In! project by V. Verdon (https://network-in.vverdon.fr)\n"
+			"VDE4Network-In " PACKAGE_VERSION " Copyright 2026\n"
 			"VDE Copyright 2003,...,2011 Renzo Davoli\n"
 			"VDE comes with NO WARRANTY, to the extent permitted by law.\n"
 			"You may redistribute copies of VDE under the terms of the\n"
@@ -594,6 +596,7 @@ static void start_modules(void);
 
 int main(int argc, char **argv)
 {
+	init_prompt();
 	set_switchmac();
 	setsighandlers();
 	start_modules();
