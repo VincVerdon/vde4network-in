@@ -1,5 +1,5 @@
 /* VDE4Network-Inc is forked from VDE2 and adapted for Network-In! Simulator project
- * Copyright V. Verdon - Version 20260301
+ * Copyright V. Verdon - Version 20260308
  * Initial Copyright 2005 Renzo Davoli VDE-2
  * Licensed under the GPL
  * --pidfile/-p and cleanup management by Mattia Belletti.
@@ -34,6 +34,11 @@
 #include <vde.h>
 #include <vdecommon.h>
 
+// VV 20260308 add
+#ifdef HAVE_TUNTAP
+#include <tuntap.h>
+#endif
+
 #include <poll.h>
 
 static struct swmodule *swmh;
@@ -44,7 +49,6 @@ unsigned int priority=DEFAULT_PRIORITY;
 
 static int hash_size=INIT_HASH_SIZE;
 static int numports=INIT_NUMPORTS;
-
 
 static void recaddswm(struct swmodule **p,struct swmodule *new)
 {
@@ -325,9 +329,7 @@ static void Usage(void) {
 			"  -x, --hub                  Make the switch act as a hub\n"
 #ifdef FSTP
 			"  -F, --fstp                 Activate the fast spanning tree protocol\n"
-#endif
 			"      --macaddr MAC          Set the Switch MAC address\n"
-#ifdef FSTP
 			"      --priority N           Set the priority for FST (MAC extension)\n"
 #endif
 			"      --hashsize N           Hash table size\n"
@@ -623,6 +625,6 @@ static void start_modules(void)
 	start_datasock();
 	start_consmgmt();
 #ifdef HAVE_TUNTAP
-	start_tuntap();
+start_tuntap();
 #endif
 }

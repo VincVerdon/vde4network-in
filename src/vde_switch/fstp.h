@@ -24,3 +24,6 @@ int fstflag(int op, int f);
 void fst_init(int initnumports);
 #endif
 #endif
+
+// VV functions declaration
+int writefstpconfig(FILE *fd);

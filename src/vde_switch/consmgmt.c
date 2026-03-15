@@ -33,7 +33,7 @@
 #include <config.h>
 #include <vde.h>
 #include <vdecommon.h>
-
+#include <fstp.h>
 #include "port.h"
 #include "switch.h"
 #include "sockutils.h"
@@ -53,9 +53,11 @@ static char pidfile_path[PATH_MAX];
 // VV 20251211 add logfile savefile and defaultsavefile
 static char *logfile = NULL;
 static char *savefile = NULL;
+static char *namefile = NULL;
 static char *defaultsavefile = "/tmp/switch.conf";
+// VV 20260305 add lastmessage to save last message log
+static char *lastmessage = "";
 
-static char last_message[500] = "";
 static char severity_text[8][6] = {"Emerg","Alert","Crit","Error","Warn","Notice","Info","Debug"};
 static int daemonize = 0;
 static int nostdin = 0;
@@ -67,12 +69,11 @@ static gid_t mgmt_group = -1;
 static char *mgmt_socket = NULL;
 
 // VV 20260217 update info
-static char header[]="VDE4Network-In! switch v. %s for Network-In! simulator\n"
-		"(C) V. Verdon 2026 - Modified from VDE2 switch\n"
-		"(C) Virtual Square Team (coord. R. Davoli) 2005,2006,2007 - GPLv2\n";
+static char header[]="VDE4Network-In switch for Network-In! simulator\n"
+		"(C) V. Verdon 2026 - Forked from VDE2 switch\n"
+		"VDE2 (C) Virtual Square Team (coord. R. Davoli) 2005,2006,2007 - GPLv2\n";
 
 // VV 20260301 add name
-
 static char *switchname = "unnamed";
 // VV 20260303 - Definition of prompt sent to vdeterm
 static char *prompt;
@@ -185,28 +186,25 @@ void delplugin(struct plugin *cl)
 }
 #endif
 
+
 /* VV 20251210
  * Initial function called printlog()*/
-void printlog_log(int priority, const char *format, ...)
+void printlog_log(int priority, const char *format)
 {
-	va_list arg;
-	va_start (arg, format);
-
 	if (logok)
-		vsyslog(priority,format,arg);
+		vsyslog(priority,format, NULL);
 	else {
 		fprintf(stderr,"%s: ",prog);
-		vfprintf(stderr,format,arg);
+		vfprintf(stderr,format, NULL);
 		fprintf(stderr,"\n");
 	}
-	va_end (arg);
 }
+
 
 /*VV 20251211
 * Print log in file*/
-void printlog_file(int priority, const char *format, ...)
+void printlog_file(int priority, const char *format)
 {
-
 	FILE *f=fopen(logfile,"a");
 	if (f != NULL) {
 		//fprintf(f, "Priority %i : ", priority);
@@ -215,7 +213,6 @@ void printlog_file(int priority, const char *format, ...)
 		fprintf(f, "\n");
 		fclose(f);
 	}
-
 }
 
 /*VV 20251211
@@ -223,29 +220,38 @@ void printlog_file(int priority, const char *format, ...)
 * Behavior depends on -l command argument*/
 void printlog(int priority, const char *format, ...)
 {
-
-	//if (logfile != 0 && last_message != format) {
-	if (logfile != 0) {
-		//Print log in file defined in -l option when starting vde_switch
-		//Log is saved only if it's a new information
-		printlog_file(priority, format);
-	} else {
-		//Print log using classical method
-		printlog_log(priority, format);
+	va_list args;
+	va_start (args, format);
+	char *arg = "";
+	arg = va_arg(args,char *);
+	// save the last message
+	char *message = NULL;
+	asprintf(&message, format, arg);
+	va_end(args);
+	//Log is saved only if it's a new information
+	if (strcmp(lastmessage, message) != 0) {
+		if (logfile != 0) {
+			//Print log in file defined in -l option at start
+			printlog_file(priority, message);
+		} else {
+			//Print log using classical method
+			printlog_log(priority, message);
+		}
+		lastmessage = strdup(message);
 	}
-
 }
+
 
 void printoutc(FILE *f, const char *format, ...)
 {
 	va_list arg;
-
 	va_start (arg, format);
 	if (f) {
 		vfprintf(f,format,arg);
 		fprintf(f,"\n");
-	} else
+	} else {
 		printlog(LOG_INFO,format,arg);
+	}
 	va_end(arg);
 }
 
@@ -336,8 +342,7 @@ static int handle_cmd(int type,int fd,char *inbuf)
 		FILE *f=open_memstream(&outbuf,&outbufsize);
 		for (p=clh;p!=NULL && (p->doit==NULL || strncmp(p->path,inbuf,strlen(p->path))!=0); p=p->next)
 			;
-		if (p!=NULL)
-		{
+		if (p!=NULL) {
 			inbuf += strlen(p->path);
 			while (*inbuf == ' ' || *inbuf == '\t') inbuf++;
 			if (p->type & WITHFD) {
@@ -349,7 +354,7 @@ static int handle_cmd(int type,int fd,char *inbuf)
 							case INTARG: rv=p->doit(f,fd,atoi(inbuf)); break;
 							case STRARG: rv=p->doit(f,fd,inbuf); break;
 						}
-						//printoutc(f,".");
+						printoutc(f,".");
 					} else {
 						switch(p->type & ~WITHFD){
 							case NOARG: rv=p->doit(fd); break;
@@ -360,6 +365,8 @@ static int handle_cmd(int type,int fd,char *inbuf)
 				} else
 					rv = EBADF;
 			} else if (p->type & WITHFILE) {
+				// VV 20260303 - New line before send result
+				printoutc(f,"");
 				//printoutc(f,"0000 DATA END WITH '.'");
 				switch(p->type & ~WITHFILE){
 					case NOARG: rv=p->doit(f); break;
@@ -377,14 +384,16 @@ static int handle_cmd(int type,int fd,char *inbuf)
 		}
 
 		if (rv == 0) {
-			printoutc(f,"1000 Success");
+			//printoutc(f,"1000 Success");
 			//VV 20251212
-			printlog(LOG_INFO,"Success command");
+			//printlog(LOG_INFO,"Success command");
 
 		} else if (rv > 0) {
-			printoutc(f,"1%03d %s",rv,strerror(rv));
-			//VV 20251212
-			printlog(LOG_WARNING,"Error 1%03d %s",rv,strerror(rv));
+			printoutc(f,"Error 1%03d %s",rv,strerror(rv));
+			//VV 20260304
+			char *mess=NULL;
+			asprintf(&mess,"%s - Error 1%03d %s",inbuf, rv, strerror(rv));
+			printlog(LOG_WARNING,mess);
 		}
 		fclose(f);
 		if (fd >= 0) {
@@ -395,6 +404,7 @@ static int handle_cmd(int type,int fd,char *inbuf)
 	return rv;
 }
 
+// Runs a script
 static int runscript(int fd,char *path) 
 {
 	FILE *f=fopen(path,"r");
@@ -412,8 +422,8 @@ static int runscript(int fd,char *path)
 				write(fd,scriptprompt,strlen(scriptprompt));
 				free(scriptprompt);
 			}
-			//VV 20260228 - print log and ignore comment line from config file
-			if (buf[0] != '#') {
+			//VV 20260228 - print log and ignore comment line or empty from config file
+			if (buf[0] != '#' && buf[0] != '\n') {
 				printlog(LOG_INFO,buf);
 				handle_cmd(mgmt_data, fd, buf);
 			}
@@ -441,23 +451,39 @@ static int savescript(FILE *fd, char *path)
 	} else {
 		strcpy(filepath, defaultsavefile);
 	}
-
 	f=fopen(filepath,"w");
-	char *mess=NULL;
-
 	if (f) {
-		asprintf(&mess,"Save configuration in file %s", filepath);
-		printlog(LOG_INFO, mess);
+		printlog(LOG_INFO, "Save configuration in file %s", filepath);
 		//writing conf
 		writemainconfig(f);
 		writevlanconfig(f);
 		writeportconfig(f);
+		writefstpconfig(f);
 		fclose(f);
 	} else {
-		asprintf(&mess,"Save file creation impossible %s", filepath);
-		printlog(LOG_WARNING, mess);
+		printlog(LOG_WARNING, "Save file creation impossible %s", filepath);
 	}
-	free(mess);
+	return 0;
+}
+
+
+/* VV 20260314
+ * Save switchname in file
+ */
+static int savenamefile()
+{
+
+	FILE *f;
+	//char *filepath;
+	//asprintf(&filepath, "%s/%s", dirname(pidfile), "name");
+	printlog(LOG_INFO, "Name file creation =  %s", namefile);
+	f=fopen(namefile,"w");
+	if (f) {
+		printoutc(f, switchname);
+		fclose(f);
+	} else {
+		printlog(LOG_WARNING, "Name file creation impossible %s", namefile);
+	}
 	return 0;
 }
 
@@ -478,9 +504,10 @@ void loadrcfile(void)
 	}
 }
 
+
 void mgmtnewfd(int new)
 {
-	char buf[MAXCMD];
+	char buf[MAXCMD * 2];
 	if(fcntl(new, F_SETFL, O_NONBLOCK) < 0){
 		printlog(LOG_WARNING,"mgmt fcntl - setting O_NONBLOCK %s",strerror(errno));
 		close(new);
@@ -489,7 +516,7 @@ void mgmtnewfd(int new)
 
 	add_fd(new,mgmt_data,NULL);
 	EVENTOUT(MGMTPORTNEW,new);
-	snprintf(buf,MAXCMD,header,PACKAGE_VERSION);
+	snprintf(buf,MAXCMD * 2,header,PACKAGE_VERSION);
 	write(new,buf,strlen(buf));
 	write(new,prompt,strlen(prompt));
 }
@@ -554,7 +581,7 @@ static void handle_io(unsigned char type,int fd,int revents,void *private_data)
 			return;
 		} else {
 			// VV 20251212
-			printlog(LOG_INFO,"Connexion OK");
+			printlog(LOG_INFO,"Terminal connexion OK");
 		}
 		if(fcntl(new, F_SETFL, O_NONBLOCK) < 0){
 			printlog(LOG_WARNING,"mgmt fcntl - setting O_NONBLOCK %s",strerror(errno));
@@ -565,9 +592,9 @@ static void handle_io(unsigned char type,int fd,int revents,void *private_data)
 		add_fd(new,mgmt_data,NULL);
 		EVENTOUT(MGMTPORTNEW,new);
 		//print header in management console
-		snprintf(buf,MAXCMD * 2,header,PACKAGE_VERSION);
+		snprintf(buf,MAXCMD * 2,header);
 		write(new,buf,strlen(buf));
-		// Send prompt on vdeterm
+		// Send prompt to vdeterm
 		write(new,prompt,strlen(prompt));
 	}
 }
@@ -577,7 +604,7 @@ static void save_pidfile()
 	if(pidfile[0] != '/')
 		strncat(pidfile_path, pidfile, PATH_MAX - strlen(pidfile_path) - 1);
 	else
-	  strncpy(pidfile_path, pidfile, PATH_MAX - 1);
+		strncpy(pidfile_path, pidfile, PATH_MAX - 1);
 
 	int fd = open(pidfile_path,
 			O_WRONLY | O_CREAT | O_EXCL,
@@ -601,6 +628,7 @@ static void save_pidfile()
 
 	fclose(f);
 }
+
 
 static void cleanup(unsigned char type,int fd,void *private_data)
 {
@@ -706,9 +734,9 @@ static int parseopt(int c, char *optarg)
 static void init(void)
 {
 	if (daemonize) {
-		openlog(basename(prog), LOG_PID, 0);
-		logok=1;
-		syslog(LOG_INFO,"VDE_SWITCH started");
+		//openlog(basename(prog), LOG_PID, 0);
+		//logok=1;
+		printlog(LOG_INFO,"VDE_SWITCH started");
 	}
 	/* add stdin (if tty), connect and data fds to the set of fds we wait for
 	 *    * input */
@@ -717,6 +745,11 @@ static void init(void)
 		console_type=add_type(&swmi,0);
 		add_fd(0,console_type,NULL);
 	}
+
+
+	//VV 20260314 init namefile
+	asprintf(&namefile, "%s/%s", dirname(strdup(pidfile)), "name");
+	//printlog(LOG_INFO, "INIT namefile %s", namefile);
 
 	/* saves current path in pidfile_path, because otherwise with daemonize() we
 	 *    * forget it */
@@ -781,20 +814,30 @@ static int vde_logout()
 
 static int vde_shutdown() 
 { 
-	printlog(LOG_WARNING,"Shutdown from mgmt command");
+	printlog(LOG_WARNING,"Shutdown from terminal");
 	return -2; 
 }
 
+/* VV modified 20260304
+ * Show global informations
+ */
 static int showinfo(FILE *fd) 
 {
-	printoutc(fd,header,PACKAGE_VERSION);
-	printoutc(fd,"pid %d MAC %02x:%02x:%02x:%02x:%02x:%02x uptime %d",getpid(),
+	printoutc(fd,header);
+	printoutc(fd,"VDE4Network-In version %s", PACKAGE_VERSION);
+	printoutc(fd,"Hostname = %s", switchname);
+	printoutc(fd,"MAC : %02x:%02x:%02x:%02x:%02x:%02x uptime %d",
 			switchmac[0], switchmac[1], switchmac[2], switchmac[3], switchmac[4], switchmac[5],
 			qtime());
-	if (mgmt_socket)
-		printoutc(fd,"mgmt %s perm 0%03o",mgmt_socket,mgmt_mode);
+	printoutc(fd,"Ports : %d", get_ports_number());
+	printoutc(fd,"HUB = %s",(get_hub_state()==1)?"true":"false");
+	printoutc(fd,"PID : %d ", getpid());
+
+	/*if (mgmt_socket)
+		printoutc(fd,"mgmt %s perm 0%03o",mgmt_socket,mgmt_mode);*/
 	return 0;
 }
+
 
 #ifdef DEBUGOPT
 static int debuglist(FILE *f,int fd,char *path)
@@ -1053,32 +1096,41 @@ static int plugindel(char *arg) {
 }
 #endif
 
-static int setswitchname(FILE *fd, char *arg)
+/* Change  with arg value
+ * Adapt prompt to new name.
+ */
+static int setswitchname(FILE *fd, char *name)
 {
-	//char *switchname = malloc(strlen(arg) + 1);
-	//strcpy(switchname, arg);
-	asprintf(&switchname, "%s", arg);
-
-
-	char *mess=NULL;
-	asprintf(&mess,"new name = %s", switchname);
-	printlog(LOG_INFO, mess);
-	printoutc(fd,"name = %s",switchname);
-
-	// update
-	init_prompt();
-
-	return 0;
+	int ret = 0;
+	// Check if the new name is only composed with 0-9 and a-z and A-Z and - characters
+	for (int i=0; i<strlen(name); i++) {
+		if (!(name[i]==45 || (name[i]>=48 && name[i]<=57) ||
+				(name[i]>=65 && name[i]<=90) || (name[i]>=97 && name[i]<=122))) {
+			ret = EINVAL;
+		}
+	}
+	if (ret == 0) {
+		switchname = strdup(name);
+		printlog(LOG_INFO, "New name = %s", switchname);
+		printoutc(fd,"hostname = %s",switchname);
+		//write name info file
+		savenamefile();
+		// update prompt with new name
+		init_prompt();
+	}
+	return ret;
 }
+
 
 static struct comlist cl[]={
 	{"help","[arg]","Help (limited to arg when specified)",help,STRARG | WITHFILE},
 	{"logout","","logout from this mgmt terminal",vde_logout,NOARG},
 	{"shutdown","","shutdown of the switch",vde_shutdown,NOARG},
 	{"showinfo","","show switch version and info",showinfo,NOARG|WITHFILE},
-	{"hostname","name","set switch name",setswitchname, STRARG | WITHFILE},
-	{"load","path","load a configuration script",runscript,STRARG|WITHFD},
-	{"save","path","save configuration in file (default file if not completed)",savescript,STRARG|WITHFD},
+	{"hostname","NAME","set switch name",setswitchname, STRARG | WITHFILE},
+	{"load","PATH","load a configuration script",runscript,STRARG|WITHFD},
+	{"save","[PATH]","save configuration in file (default file path if not completed)",savescript,STRARG|WITHFD},
+	{"sethub","0/1","0=switch 1=HUB",portsethub,INTARG},
 #ifdef DEBUGOPT
 	{"debug","============","DEBUG MENU",NULL,NOARG},
 	{"debug/list","","list debug categories",debuglist,STRARG|WITHFILE|WITHFD},
@@ -1103,7 +1155,7 @@ static void sighupmgmt(int signo)
 void start_consmgmt(void)
 {
 	//VV 20251211
-	printlog(LOG_INFO,"Connection from terminal");
+	//printlog(LOG_INFO,"Connection from terminal");
 	swmi.swmname="console-mgmt";
 	swmi.swmnopts=Nlong_options;
 	swmi.swmopts=long_options;
@@ -1122,7 +1174,9 @@ void start_consmgmt(void)
 #endif
 }
 
-//VV 20260227
+/*VV 20260227
+ * Write configuration script (lauched by "save" command)
+ */
 int writemainconfig(FILE *fd)
 {
 	time_t now;
@@ -1132,13 +1186,11 @@ int writemainconfig(FILE *fd)
 	asprintf(&datetime,"%04d-%02d-%02d %02d:%02d:%02d",
 	  t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec);
 
-	printoutc(fd,"# VDE4Network-In! switch configuration");
+	printoutc(fd,"# VDE4Network-In switch configuration");
+	printoutc(fd,"# VDE4Network-In version %s", PACKAGE_VERSION);
 	printoutc(fd,"# File generated at %s", datetime);
-	printoutc(fd,"# by VDE4Network-In! version %s", PACKAGE_VERSION);
 	printoutc(fd,"");
-
 	printoutc(fd,"hostname %s",switchname);
-
 	writesethub(fd);
 
 	return 0;

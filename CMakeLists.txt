@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
-project(vde2 
-    VERSION 2.3.3 
+project(vde4networkin 
+    VERSION 1.0.0 
     LANGUAGES C
 )
 
@@ -14,7 +14,7 @@ cm_define_project(
     ${PROJECT_NAME} 
     ${PROJECT_NAME} 
     "${PROJECT_NAME} ${PROJECT_VERSION}" 
-    "info@v2.cs.unibo.it" 
+    "network-in@vverdon.fr" 
     " " 
     ${PROJECT_NAME}
 )

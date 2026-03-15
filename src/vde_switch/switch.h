@@ -1,4 +1,6 @@
-/* Copyright 2005 Renzo davoli VDE-2
+/* VDE4Network-Inc is forked from VDE2 and adapted for Network-In! Simulator project
+ * Copyright V. Verdon - Version 20260308
+ * Initial Copyright 2005 Renzo davoli VDE-2
  * Some code from vde_switch Copyright 2002 Jeff Dike
  * Licensed under the GPLv2
  */
@@ -9,6 +11,10 @@
 typedef unsigned char uchar;
 /* FAST SPANNING TREE PROTOCOL (experimental)*/
 #define FSTP
+
+/*VV 20260308*/
+#define HAVE_TUNTAP
+
 /* POLL Main LOOP Optimization */
 #define OPTPOLL
 

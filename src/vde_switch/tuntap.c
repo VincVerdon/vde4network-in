@@ -1,4 +1,6 @@
-/* Copyright 2005 Renzo Davoli - VDE-2
+/* VDE4Network-Inc is forked from VDE2 and adapted for Network-In! Simulator project
+ * Copyright V. Verdon - Version 20260308
+ * Initial Copyright 2005 Renzo Davoli - VDE-2
  * --pidfile/-p and cleanup management by Mattia Belletti (C) 2004.
  * Licensed under the GPLv2
  * Modified by Ludovico Gardenghi 2005 (OSX tuntap support)

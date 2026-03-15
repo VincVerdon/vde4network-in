@@ -1,4 +1,6 @@
-/* Copyright 2005 Renzo Davoli VDE-2
+/* VDE4Network-Inc is forked from VDE2 and adapted for Network-In! Simulator project
+ * Copyright V. Verdon - Version 20260308
+ * Initial Copyright 2005 Renzo Davoli VDE-2
  * Licensed under the GPLv2 
  */
 
@@ -606,12 +608,14 @@ static void fstinitpkt(void)
 	fst_timerno=qtimer_add(helloperiod,0,fst_hello,NULL);
 }
 
+// VV 20260305 some aspect modif
 static int fstpshowinfo(FILE *fd)
 {
-	printoutc(fd,"MAC %02x:%02x:%02x:%02x:%02x:%02x Priority %d (0x%x)",
-			switchmac[0], switchmac[1], switchmac[2], switchmac[3], switchmac[4], switchmac[5],
-			priority,priority);
-	printoutc(fd,"FSTP=%s",(pflag & FSTP_TAG)?"true":"false");
+	printoutc(fd,"FSTP = %s",(pflag & FSTP_TAG)?"true":"false");
+	printoutc(fd,"MAC = %02x:%02x:%02x:%02x:%02x:%02x",
+			switchmac[0], switchmac[1], switchmac[2], switchmac[3], switchmac[4], switchmac[5]);
+	printoutc(fd,"Priority =  %d (0x%x)", priority, priority);
+
 	return 0;
 }
 
@@ -741,10 +745,10 @@ static int fstsetedge(char *arg)
 static struct comlist cl[]={
 	{"fstp","============","FAST SPANNING TREE MENU",NULL,NOARG},
 	{"fstp/showinfo","","show fstp info",fstpshowinfo,NOARG|WITHFILE},
-	{"fstp/setfstp","0/1","Fast spanning tree protocol 1=ON 0=OFF",fstpsetonoff,INTARG|WITHFILE},
-	{"fstp/setedge","VLAN PORT 1/0","Define an edge port for a vlan 1=Y 0=N",fstsetedge,STRARG},
+	{"fstp/setfstp","0/1","Fast spanning tree protocol 0=OFF 1=ON",fstpsetonoff,INTARG|WITHFILE},
+	{"fstp/setedge","VLAN PORT 0/1","Define an edge port for a vlan 0=N 1=Y",fstsetedge,STRARG},
 	{"fstp/bonus","VLAN PORT COST","set the port bonus for a vlan",fstsetbonus,STRARG},
-	{"fstp/print","[N]","print fst data for the defined vlan",fstprint,STRARG|WITHFILE},
+	{"fstp/print","[VLAN]","print fst data for the defined vlan",fstprint,STRARG|WITHFILE},
 };
 
 int fstflag(int op,int f)
@@ -771,3 +775,10 @@ void fst_init(int initnumports)
 #endif
 }
 #endif
+
+//VV 20260306
+int writefstpconfig(FILE *fd)
+{
+		printoutc(fd,"fstp/setfstp %d ", (pflag & FSTP_TAG));
+	return 0;
+}

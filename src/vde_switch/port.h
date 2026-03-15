@@ -94,4 +94,7 @@ int port_getcost(int port);
 int writevlanconfig(FILE *fd);
 int writeportconfig(FILE *fd);
 int writesethub(FILE *fd);
+int get_ports_number();
+int portsethub(int val);
+int get_hub_state();
 

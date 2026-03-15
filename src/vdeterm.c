@@ -92,22 +92,24 @@ static char *copy_header_prompt (int vdefd,int termfd,char *sock)
 		struct pollfd wfd={vdefd,POLLIN|POLLHUP,0};
 		poll(&wfd,1,-1);
 		while ((n=read(vdefd,buf,BUFSIZE))>0) {
-			if (buf[n-2]=='$' &&
-					buf[n-1]==' ') {
+			if (buf[n-2]=='$' && buf[n-1]==' ') {
 				n-=2;
 				buf[n]=0;
 				while (n>0 && buf[n] !='\n')
 					n--;
+				//displays received data to term
 				write(termfd,buf,n+1);
 				// Prompt displayed in terminal
 				asprintf(&prompt,"%s># ",buf+n+1);
 				//asprintf(&prompt,"%s[%s]: ",buf+n+1,sock);
 				return prompt;
-			} else
+			} else {
 				write(termfd,buf,n);
+			}
 		}
 	}
 }
+
 
 int main(int argc,char *argv[])
 {
@@ -152,12 +154,13 @@ int main(int argc,char *argv[])
 	while(1) {
 		poll(pfd,2,-1);
 		//printf("POLL %d %d\n",pfd[0].revents,pfd[1].revents);
-		if(pfd[0].revents & POLLHUP ||
-				pfd[1].revents & POLLHUP)
+		if(pfd[0].revents & POLLHUP || pfd[1].revents & POLLHUP) {
 			exit(0);
+		}
 		if(pfd[0].revents & POLLIN) {
-			if (vdehist_term_to_mgmt(vdehst) != 0)
+			if (vdehist_term_to_mgmt(vdehst) != 0) {
 				exit(0);
+			}
 		}
 		if(pfd[1].revents & POLLIN) {
 			// VV 20260303 - add line to update prompt with new name
