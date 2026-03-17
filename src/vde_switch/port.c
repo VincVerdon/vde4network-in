@@ -982,8 +982,11 @@ int portsethub(int val)
 		fstpshutdown();
 #endif
 		portflag(P_SETFLAG,HUB_TAG);
-	} else
+		//printoutc(fd, "Hub mode disabled");
+	} else {
 		portflag(P_CLRFLAG,HUB_TAG);
+		//printoutc(fd, "Hub mode enabled");
+	}
 	return 0;
 }
 
@@ -1283,24 +1286,24 @@ char *port_descr(int portno, int epn) {
 //VV 20260228 remove entries - rename vlan/addport to vlan/addtrunkport
 static struct comlist cl[]={
 	{"port","============","PORT STATUS MENU",NULL,NOARG},
-	{"port/showinfo","","show port info",showinfo,NOARG|WITHFILE},
-	{"port/setvlan","PORT VLAN","set port VLAN (untagged)",portsetvlan,STRARG},
 	{"port/allocatable","PORT 0/1","Is the port allocatable as unnamed? 1=Y 0=N",portallocatable,STRARG},
 #ifdef VDE_PQ2
 	{"port/defqlen","LEN","set the default queue length for new ports",defqlen,INTARG},
-	{"port/epqlen","PORT ID LEN","set the lenth of the queue for port N/id IP",epqlen,STRARG},
+	{"port/epqlen","PORT ID LEN","set the length of the queue for port N/id IP",epqlen,STRARG},
 #endif
+	{"port/print","[PORT]","print the port table",print_ptableall,STRARG|WITHFILE},
 #ifdef PORTCOUNTERS
 	{"port/printcount","[PORT]","print the active ports with packets count",print_active_port_count,STRARG|WITHFILE},
 	{"port/resetcounter","[PORT]","reset the port (PORT) counters",portresetcounters,STRARG},
 #endif
-	{"port/print","[PORT]","print the port table",print_ptableall,STRARG|WITHFILE},
+	{"port/setvlan","PORT VLAN","set port VLAN (untagged)",portsetvlan,STRARG},
+	{"port/show","","show port info",showinfo,NOARG|WITHFILE},
 	{"vlan","============","VLAN MANAGEMENT MENU",NULL,NOARG},
-	{"vlan/create","VLAN","create the VLAN with tag N",vlancreate,INTARG},
-	{"vlan/remove","VLAN","remove the VLAN with tag N",vlanremove,INTARG},
 	{"vlan/addtrunkport","VLAN PORT","add trunk port to the vlan N",vlanaddtrunkport,STRARG},
+	{"vlan/create","VLAN","create the VLAN with tag N",vlancreate,INTARG},
 	{"vlan/deltrunkport","VLAN PORT","del trunk port to the vlan N",vlandeltrunkport,STRARG},
 	{"vlan/print","[VLAN]","print the list of defined vlan",vlanprintall,STRARG|WITHFILE},
+	{"vlan/remove","VLAN","remove the VLAN with tag N",vlanremove,INTARG},
 };
 
 void port_init(int initnumports)

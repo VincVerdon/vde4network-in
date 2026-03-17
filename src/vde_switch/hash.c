@@ -408,13 +408,13 @@ static int showinfo(FILE *fd)
 
 static struct comlist cl[]={
 	{"hash","============","HASH TABLE MENU",NULL,NOARG},
-	{"hash/showinfo","","show hash info",showinfo,NOARG|WITHFILE},
-	{"hash/setsize","N","change hash size",hash_resize,INTARG},
-	{"hash/setgcint","N","change garbage collector interval",hash_set_gc_interval,INTARG},
-	{"hash/setexpire","N","change hash entries expire time",hash_set_gc_expire,INTARG},
-	{"hash/setminper","N","minimum persistence time",hash_set_minper,INTARG},
-	{"hash/print","","print the hash table",print_hash,NOARG|WITHFILE},
 	{"hash/find","MAC [VLAN]","MAC lookup",find_hash,STRARG|WITHFILE},
+	{"hash/print","","print the hash table",print_hash,NOARG|WITHFILE},
+	{"hash/setexpire","N","change hash entries expire time",hash_set_gc_expire,INTARG},
+	{"hash/setgcint","N","change garbage collector interval",hash_set_gc_interval,INTARG},
+	{"hash/setminper","N","minimum persistence time",hash_set_minper,INTARG},
+	{"hash/setsize","N","change hash size",hash_resize,INTARG},
+	{"hash/show","","show hash info",showinfo,NOARG|WITHFILE},
 };
 
 /* sets sig_alarm as handler for SIGALRM, and run it a first time */

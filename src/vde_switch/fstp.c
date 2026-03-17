@@ -611,7 +611,7 @@ static void fstinitpkt(void)
 // VV 20260305 some aspect modif
 static int fstpshowinfo(FILE *fd)
 {
-	printoutc(fd,"FSTP = %s",(pflag & FSTP_TAG)?"true":"false");
+	printoutc(fd,"STP = %s",(pflag & FSTP_TAG)?"true":"false");
 	printoutc(fd,"MAC = %02x:%02x:%02x:%02x:%02x:%02x",
 			switchmac[0], switchmac[1], switchmac[2], switchmac[3], switchmac[4], switchmac[5]);
 	printoutc(fd,"Priority =  %d (0x%x)", priority, priority);
@@ -634,27 +634,42 @@ void fstpshutdown(void)
 	}
 }
 
-static int fstpsetonoff(FILE *fd, int val)
+
+/*
+ * VV 20260316 - rename function fstponoff and add null parameter test
+ */
+static int fstpenable(FILE *fd, char *arg)
 {
+	int val;
+	int ret = 0;
+	if (strcmp(arg, "") != 0) {
+		val = atoi(arg);
+	} else {
+		ret = EINVAL;
+	}
+
 	int oldval=((pflag & FSTP_TAG) != 0);
 	if (portflag(P_GETFLAG, HUB_TAG)){
-		printoutc(fd, "Can't use fstp in hub mode");
-		return 0;
-	}
-	val=(val != 0);
-	if (oldval != val)
-	{
-		if (val) { /* START FST */
-			fstinitpkt();
-			fstflag(P_SETFLAG,FSTP_TAG);
-		} else { /* STOP FST */
-			qtimer_del(fst_timerno);
-			fstflag(P_CLRFLAG,FSTP_TAG);
-			bac_FORALLFUN(validvlan,NUMOFVLAN,fstnewvlan2,NULL);
+		printoutc(fd, "STP is disabled in hub mode");
+	} else {
+		val=(val != 0);
+		if (oldval != val)
+		{
+			if (val) { /* START FST */
+				fstinitpkt();
+				fstflag(P_SETFLAG,FSTP_TAG);
+				printoutc(fd, "STP enabled");
+			} else { /* STOP FST */
+				qtimer_del(fst_timerno);
+				fstflag(P_CLRFLAG,FSTP_TAG);
+				bac_FORALLFUN(validvlan,NUMOFVLAN,fstnewvlan2,NULL);
+				printoutc(fd, "STP disabled");
+			}
 		}
 	}
-	return 0;
+	return ret;
 }
+
 
 static char *decoderole(int vlan, int port)
 {
@@ -743,12 +758,12 @@ static int fstsetedge(char *arg)
 }
 
 static struct comlist cl[]={
-	{"fstp","============","FAST SPANNING TREE MENU",NULL,NOARG},
-	{"fstp/showinfo","","show fstp info",fstpshowinfo,NOARG|WITHFILE},
-	{"fstp/setfstp","0/1","Fast spanning tree protocol 0=OFF 1=ON",fstpsetonoff,INTARG|WITHFILE},
-	{"fstp/setedge","VLAN PORT 0/1","Define an edge port for a vlan 0=N 1=Y",fstsetedge,STRARG},
-	{"fstp/bonus","VLAN PORT COST","set the port bonus for a vlan",fstsetbonus,STRARG},
-	{"fstp/print","[VLAN]","print fst data for the defined vlan",fstprint,STRARG|WITHFILE},
+	{"stp","============","SPANNING TREE MENU",NULL,NOARG},
+	{"stp/bonus","VLAN PORT COST","set the port bonus for a vlan",fstsetbonus,STRARG},
+	{"stp/enable","0(default)/1","enable STP 0=OFF 1=ON",fstpenable,STRARG|WITHFILE},
+	{"stp/print","[VLAN]","print spanning tree data for the defined vlan",fstprint,STRARG|WITHFILE},
+	{"stp/setedge","VLAN PORT 0/1","Define an edge port for a vlan 0=N 1=Y",fstsetedge,STRARG},
+	{"stp/showinfo","","show STP info",fstpshowinfo,NOARG|WITHFILE},
 };
 
 int fstflag(int op,int f)
@@ -779,6 +794,6 @@ void fst_init(int initnumports)
 //VV 20260306
 int writefstpconfig(FILE *fd)
 {
-		printoutc(fd,"fstp/setfstp %d ", (pflag & FSTP_TAG));
+		printoutc(fd,"stp/enable %d ", (pflag & FSTP_TAG));
 	return 0;
 }

@@ -405,7 +405,7 @@ static int handle_cmd(int type,int fd,char *inbuf)
 }
 
 // Runs a script
-static int runscript(int fd,char *path) 
+static int runscript(int fd,char *path)
 {
 	FILE *f=fopen(path,"r");
 	char buf[MAXCMD];
@@ -460,8 +460,9 @@ static int savescript(FILE *fd, char *path)
 		writeportconfig(f);
 		writefstpconfig(f);
 		fclose(f);
+		//printoutc(fd, "Configuration saved");
 	} else {
-		printlog(LOG_WARNING, "Save file creation impossible %s", filepath);
+		printlog(LOG_WARNING, "Save configuration file creation impossible %s", filepath);
 	}
 	return 0;
 }
@@ -469,20 +470,21 @@ static int savescript(FILE *fd, char *path)
 
 /* VV 20260314
  * Save switchname in file
+ * if pidfile isn't defined then do nothing
  */
 static int savenamefile()
 {
-
-	FILE *f;
-	//char *filepath;
-	//asprintf(&filepath, "%s/%s", dirname(pidfile), "name");
-	printlog(LOG_INFO, "Name file creation =  %s", namefile);
-	f=fopen(namefile,"w");
-	if (f) {
-		printoutc(f, switchname);
-		fclose(f);
-	} else {
-		printlog(LOG_WARNING, "Name file creation impossible %s", namefile);
+	if (pidfile) {
+		FILE *f;
+		asprintf(&namefile, "%s/%s", dirname(strdup(pidfile)), "hostname");
+		printlog(LOG_INFO, "Name file creation =  %s", namefile);
+		f=fopen(namefile,"w");
+		if (f) {
+			printoutc(f, switchname);
+			fclose(f);
+		} else {
+			printlog(LOG_WARNING, "Name file creation impossible %s", namefile);
+		}
 	}
 	return 0;
 }
@@ -746,11 +748,6 @@ static void init(void)
 		add_fd(0,console_type,NULL);
 	}
 
-
-	//VV 20260314 init namefile
-	asprintf(&namefile, "%s/%s", dirname(strdup(pidfile)), "name");
-	//printlog(LOG_INFO, "INIT namefile %s", namefile);
-
 	/* saves current path in pidfile_path, because otherwise with daemonize() we
 	 *    * forget it */
 	if(getcwd(pidfile_path, PATH_MAX-2) == NULL) {
@@ -824,14 +821,14 @@ static int vde_shutdown()
 static int showinfo(FILE *fd) 
 {
 	printoutc(fd,header);
-	printoutc(fd,"VDE4Network-In version %s", PACKAGE_VERSION);
+	printoutc(fd,"Firmware version = %s", PACKAGE_VERSION);
 	printoutc(fd,"Hostname = %s", switchname);
-	printoutc(fd,"MAC : %02x:%02x:%02x:%02x:%02x:%02x uptime %d",
-			switchmac[0], switchmac[1], switchmac[2], switchmac[3], switchmac[4], switchmac[5],
-			qtime());
-	printoutc(fd,"Ports : %d", get_ports_number());
+	printoutc(fd,"MAC = %02x:%02x:%02x:%02x:%02x:%02x",
+			switchmac[0], switchmac[1], switchmac[2], switchmac[3], switchmac[4], switchmac[5]);
+	printoutc(fd,"Ports = %d", get_ports_number());
 	printoutc(fd,"HUB = %s",(get_hub_state()==1)?"true":"false");
-	printoutc(fd,"PID : %d ", getpid());
+	printoutc(fd,"PID = %d ", getpid());
+	printoutc(fd,"Uptime = %d", qtime());
 
 	/*if (mgmt_socket)
 		printoutc(fd,"mgmt %s perm 0%03o",mgmt_socket,mgmt_mode);*/
@@ -1099,7 +1096,7 @@ static int plugindel(char *arg) {
 /* Change  with arg value
  * Adapt prompt to new name.
  */
-static int setswitchname(FILE *fd, char *name)
+static int setswitchname(char *name)
 {
 	int ret = 0;
 	// Check if the new name is only composed with 0-9 and a-z and A-Z and - characters
@@ -1112,7 +1109,7 @@ static int setswitchname(FILE *fd, char *name)
 	if (ret == 0) {
 		switchname = strdup(name);
 		printlog(LOG_INFO, "New name = %s", switchname);
-		printoutc(fd,"hostname = %s",switchname);
+		//printoutc(fd,"hostname renamed to %s",switchname);
 		//write name info file
 		savenamefile();
 		// update prompt with new name
@@ -1123,19 +1120,20 @@ static int setswitchname(FILE *fd, char *name)
 
 
 static struct comlist cl[]={
-	{"help","[arg]","Help (limited to arg when specified)",help,STRARG | WITHFILE},
+	{"?","[arg]","Help (limited to arg when specified)",help,STRARG|WITHFILE},
+	{"help","[arg]","Help (limited to arg when specified)",help,STRARG|WITHFILE},
+	{"hostname","NAME","set switch name",setswitchname, STRARG},
+	{"load","PATH","load a configuration script",runscript,STRARG|WITHFILE},
 	{"logout","","logout from this mgmt terminal",vde_logout,NOARG},
-	{"shutdown","","shutdown of the switch",vde_shutdown,NOARG},
-	{"showinfo","","show switch version and info",showinfo,NOARG|WITHFILE},
-	{"hostname","NAME","set switch name",setswitchname, STRARG | WITHFILE},
-	{"load","PATH","load a configuration script",runscript,STRARG|WITHFD},
 	{"save","[PATH]","save configuration in file (default file path if not completed)",savescript,STRARG|WITHFD},
-	{"sethub","0/1","0=switch 1=HUB",portsethub,INTARG},
+	{"sethub","0(default)/1","enable hub mode 0=switch 1=hub",portsethub,INTARG},
+	{"show","","show switch version and more info",showinfo,NOARG|WITHFILE},
+	{"shutdown","","shutdown of the switch",vde_shutdown,NOARG},
 #ifdef DEBUGOPT
 	{"debug","============","DEBUG MENU",NULL,NOARG},
-	{"debug/list","","list debug categories",debuglist,STRARG|WITHFILE|WITHFD},
 	{"debug/add","dbgpath","enable debug info for a given category",debugadd,WITHFD|STRARG},
 	{"debug/del","dbgpath","disable debug info for a given category",debugdel,WITHFD|STRARG},
+	{"debug/list","","list debug categories",debuglist,STRARG|WITHFILE|WITHFD},
 #endif
 #ifdef VDEPLUGIN
 	{"plugin","============","PLUGINS MENU",NULL,NOARG},
