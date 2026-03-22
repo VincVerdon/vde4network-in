@@ -1,7 +1,10 @@
-/* Copyright 2005 Renzo Davoli VDE-2
+/* VDE4Network-Inc is forked from VDE2 and adapted for Network-In! Simulator project
+ * Copyright V. Verdon - Version 20260308
+ * Initial Copyright 2005 Renzo Davoli VDE-2
  * Copyright 2002 Yon Uriarte and Jeff Dike (uml_switch)
  * Licensed under the GPLv2
  * Modified 2003 Renzo Davoli
+ * VVerdon version 20260317
  */
 
 #include <stddef.h>

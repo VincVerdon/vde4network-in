@@ -1,7 +1,9 @@
 /*
- * libvdehist - A library to manage history and command completion for vde mgmt protocol
- * Copyright (C) 2006 Renzo Davoli, University of Bologna
+ * VDE4Network-Inc is forked from VDE2 and adapted for Network-In! Simulator project
+ * Copyright V. Verdon - Version 20260301
+ * Initial Copyright (C) 2006 Renzo Davoli, University of Bologna
  *
+ * libvdehist - A library to manage history and command completion for vde mgmt protocol
  * This library is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation version 2.1 of the License, or (at
@@ -254,18 +256,46 @@ static void redraw_line(struct vdehiststat *st,int prompt_too)
 	size_t bufsize;
 	FILE *ms=open_memstream(&buf,&bufsize);
 	if (ms) {
-		if (prompt_too)
+		if (prompt_too) {
 			fprintf(ms,"%s%s",prompt,st->linebuf);
-		else
+		}
+		else {
 			fprintf(ms,"%s",st->linebuf);
+			//fprintf(ms,"RIEN");
+		}
 		for (j=0;j<tail;j++)
 			fputc('\010',ms);
 		fclose(ms);
-		if (buf)
+		if (buf) {
 			vdehist_termwrite(st->termfd,buf,bufsize);
+		}
 		free(buf);
 	}
 }
+
+
+/* VV 20260321
+ * update prompt value from data received from management
+ */
+static void update_prompt(char *buf) {
+
+    char *res = strdup("");
+    int i;
+    for (i = 0; i < strlen(buf); i++) {
+        if (buf[i] != '\0') {
+            if (buf[i] == '$' && buf[i+1] == ' ') {
+                //free(prompt);
+                asprintf(&prompt, "%s># ", res);
+                i = strlen(buf);
+            } else {
+            	asprintf(&res, "%s%c", res, buf[i]);
+            }
+        } else {
+            i = strlen(buf);  // Sort de la boucle
+        }
+    }
+}
+
 
 void vdehist_mgmt_to_term(struct vdehiststat *st)
 {
@@ -291,8 +321,10 @@ void vdehist_mgmt_to_term(struct vdehiststat *st)
 					if (st->vindata) {
 						if (st->vlinebuf[0]=='.' && st->vlinebuf[1]=='\r')
 							st->vindata=0;
-						else
+						else {
 							vdehist_termwrite(st->termfd,st->vlinebuf,(st->vbufindex));
+						}
+
 					} else {
 						char *message=st->vlinebuf;
 						//fprintf(stderr,"MSG1 \"%s\"\n",message);
@@ -325,9 +357,13 @@ void vdehist_mgmt_to_term(struct vdehiststat *st)
 	}
 	if (commandlist == NULL && st->mgmtfd >= 0) 
 		vdehist_create_commandlist(st->mgmtfd);
+	//VV 20260321
+	char *message=st->vlinebuf;
+	update_prompt(message);
 	/* redraw the input line */
 	redraw_line(st,1);
 }
+
 
 static int hist_sendcmd(struct vdehiststat *st)
 {

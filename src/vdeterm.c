@@ -1,4 +1,6 @@
-/* Copyright 2005 Renzo Davoli VDE-2
+/* VDE4Network-Inc is forked from VDE2 and adapted for Network-In! Simulator project
+ * Copyright V. Verdon - Version 20260301
+ * Initial Copyright 2005 Renzo Davoli VDE-2
  * Licensed under the GPLv2
  *
  * Minimal terminal emulator on a UNIX stream socket
@@ -18,7 +20,7 @@
 #include <termios.h>
 #include <libvdehist.h>
 
-char *prompt;
+char *prompt = "V4N># ";
 static struct termios tiop;
 /* don't reset terminal too early.
 	 tnx Serge Hallyn  <serge.hallyn@ubuntu.com> */
@@ -87,12 +89,12 @@ static char *copy_header_prompt (int vdefd,int termfd,char *sock)
 {
 	char buf[BUFSIZE];
 	int n;
-	char *prompt;
 	while (1) {
 		struct pollfd wfd={vdefd,POLLIN|POLLHUP,0};
 		poll(&wfd,1,-1);
 		while ((n=read(vdefd,buf,BUFSIZE))>0) {
-			if (buf[n-2]=='$' && buf[n-1]==' ') {
+			if (buf[n-2]=='$' &&
+					buf[n-1]==' ') {
 				n-=2;
 				buf[n]=0;
 				while (n>0 && buf[n] !='\n')
@@ -109,6 +111,7 @@ static char *copy_header_prompt (int vdefd,int termfd,char *sock)
 		}
 	}
 }
+
 
 
 int main(int argc,char *argv[])
@@ -152,9 +155,11 @@ int main(int argc,char *argv[])
 	vdehst=vdehist_new(STDIN_FILENO,fd);
 	write(STDOUT_FILENO,prompt,strlen(prompt)+1);
 	while(1) {
+
 		poll(pfd,2,-1);
+
 		//printf("POLL %d %d\n",pfd[0].revents,pfd[1].revents);
-		if(pfd[0].revents & POLLHUP || pfd[1].revents & POLLHUP) {
+		if((pfd[0].revents & POLLHUP) || (pfd[1].revents & POLLHUP)) {
 			exit(0);
 		}
 		if(pfd[0].revents & POLLIN) {
@@ -163,10 +168,9 @@ int main(int argc,char *argv[])
 			}
 		}
 		if(pfd[1].revents & POLLIN) {
-			// VV 20260303 - add line to update prompt with new name
-			prompt=copy_header_prompt(fd,STDOUT_FILENO,argv[1]);
 			vdehist_mgmt_to_term(vdehst);
 		}
+
 		//printf("POLL RETURN!\n");
 	}
 }

@@ -4,6 +4,7 @@
  * 2008 Luca Saiu (Marionnet project): a better hub implementation
  * Some minor remain from uml_switch Copyright 2002 Yon Uriarte and Jeff Dike
  * Licensed under the GPLv2 
+ * VVerdon version 20260317
  */
 
 #include <stdio.h>

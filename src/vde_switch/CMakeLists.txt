@@ -52,4 +52,7 @@ if(ENABLE_EXPERIMENTAL)
 	target_compile_definitions(vde_switch PRIVATE -DDEBUGOPT -DPORTCOUNTERS -DVDEPLUGIN -DPLUGINS_DIR="${CMAKE_INSTALL_FULL_LIBDIR}/vde2/plugins")
 endif()
 
+# VV 20260318 - add couter code compilation diective
+target_compile_definitions(vde_switch PRIVATE -DPORTCOUNTERS)
+
 install(TARGETS vde_switch DESTINATION ${CMAKE_INSTALL_BINDIR})

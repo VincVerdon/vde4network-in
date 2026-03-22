@@ -4,6 +4,7 @@
  * 2007 co-authors Ludovico Gardenghi, Filippo Giunchedi, Luca Bigliardi
  * --pidfile/-p and cleanup management by Mattia Belletti (C) 2004.
  * Licensed under the GPLv2
+ * VVerdon version 20260317
  */
 
 #define _GNU_SOURCE
@@ -77,6 +78,7 @@ static char header[]="VDE4Network-In switch for Network-In! simulator\n"
 static char *switchname = "unnamed";
 // VV 20260303 - Definition of prompt sent to vdeterm
 static char *prompt;
+//static char prompt[]="\nv4n$ ";
 
 static struct comlist *clh=NULL;
 static struct comlist **clt=&clh;
@@ -345,10 +347,12 @@ static int handle_cmd(int type,int fd,char *inbuf)
 		if (p!=NULL) {
 			inbuf += strlen(p->path);
 			while (*inbuf == ' ' || *inbuf == '\t') inbuf++;
+			printf("ICI!\n");
 			if (p->type & WITHFD) {
+				printf("ICI2\n");
 				if (fd >= 0) {
 					if (p->type & WITHFILE) {
-						//printoutc(f,"0000 DATA END WITH '.'");
+						printoutc(f,"0000 DATA END WITH '.'");
 						switch(p->type & ~(WITHFILE | WITHFD)){
 							case NOARG: rv=p->doit(f,fd); break;
 							case INTARG: rv=p->doit(f,fd,atoi(inbuf)); break;
@@ -365,16 +369,18 @@ static int handle_cmd(int type,int fd,char *inbuf)
 				} else
 					rv = EBADF;
 			} else if (p->type & WITHFILE) {
+				printf("ICI3\n");
 				// VV 20260303 - New line before send result
-				printoutc(f,"");
-				//printoutc(f,"0000 DATA END WITH '.'");
+				//printoutc(f,"");
+				printoutc(f,"0000 DATA END WITH '.'");
 				switch(p->type & ~WITHFILE){
 					case NOARG: rv=p->doit(f); break;
 					case INTARG: rv=p->doit(f,atoi(inbuf)); break;
 					case STRARG: rv=p->doit(f,inbuf); break;
 				}
-				//printoutc(f,".");
+				printoutc(f,".");
 			} else {
+				printf("ICI4\n");
 				switch(p->type){
 					case NOARG: rv=p->doit(); break;
 					case INTARG: rv=p->doit(atoi(inbuf)); break;
@@ -386,6 +392,7 @@ static int handle_cmd(int type,int fd,char *inbuf)
 		if (rv == 0) {
 			//printoutc(f,"1000 Success");
 			//VV 20251212
+			printoutc(f,"1000 \n");
 			//printlog(LOG_INFO,"Success command");
 
 		} else if (rv > 0) {
@@ -438,7 +445,7 @@ static int runscript(int fd,char *path)
 /* VV 20260303
  * Save configuration in file
  */
-static int savescript(FILE *fd, char *path)
+static int savescript(char *path)
 {
 
 	FILE *f;
@@ -1093,18 +1100,24 @@ static int plugindel(char *arg) {
 }
 #endif
 
-/* Change  with arg value
+/* VV
+ * Change  with arg value
  * Adapt prompt to new name.
  */
 static int setswitchname(char *name)
 {
 	int ret = 0;
-	// Check if the new name is only composed with 0-9 and a-z and A-Z and - characters
-	for (int i=0; i<strlen(name); i++) {
-		if (!(name[i]==45 || (name[i]>=48 && name[i]<=57) ||
-				(name[i]>=65 && name[i]<=90) || (name[i]>=97 && name[i]<=122))) {
-			ret = EINVAL;
+
+	if (strcmp(name, "") != 0) {
+		// Check if the new name is only composed with 0-9 and a-z and A-Z and - characters
+		for (int i=0; i<strlen(name); i++) {
+			if (!(name[i]==45 || (name[i]>=48 && name[i]<=57) ||
+					(name[i]>=65 && name[i]<=90) || (name[i]>=97 && name[i]<=122))) {
+				ret = EINVAL;
+			}
 		}
+	} else {
+		ret = EINVAL;
 	}
 	if (ret == 0) {
 		switchname = strdup(name);
@@ -1125,7 +1138,7 @@ static struct comlist cl[]={
 	{"hostname","NAME","set switch name",setswitchname, STRARG},
 	{"load","PATH","load a configuration script",runscript,STRARG|WITHFILE},
 	{"logout","","logout from this mgmt terminal",vde_logout,NOARG},
-	{"save","[PATH]","save configuration in file (default file path if not completed)",savescript,STRARG|WITHFD},
+	{"save","[PATH]","save configuration in file (default file path if not completed)",savescript,STRARG},
 	{"sethub","0(default)/1","enable hub mode 0=switch 1=hub",portsethub,INTARG},
 	{"show","","show switch version and more info",showinfo,NOARG|WITHFILE},
 	{"shutdown","","shutdown of the switch",vde_shutdown,NOARG},
@@ -1153,7 +1166,7 @@ static void sighupmgmt(int signo)
 void start_consmgmt(void)
 {
 	//VV 20251211
-	//printlog(LOG_INFO,"Connection from terminal");
+	//printlog(LOG_INFO,"Connection from console");
 	swmi.swmname="console-mgmt";
 	swmi.swmnopts=Nlong_options;
 	swmi.swmopts=long_options;

@@ -2,6 +2,7 @@
  * Copyright V. Verdon - Version 20260308
  * Initial Copyright 2005 Renzo Davoli VDE-2
  * Licensed under the GPLv2 
+ * VVerdon version 20260316
  */
 
 #include <stdio.h>
@@ -614,7 +615,7 @@ static int fstpshowinfo(FILE *fd)
 	printoutc(fd,"STP = %s",(pflag & FSTP_TAG)?"true":"false");
 	printoutc(fd,"MAC = %02x:%02x:%02x:%02x:%02x:%02x",
 			switchmac[0], switchmac[1], switchmac[2], switchmac[3], switchmac[4], switchmac[5]);
-	printoutc(fd,"Priority =  %d (0x%x)", priority, priority);
+	printoutc(fd,"Priority =  %d", priority);
 
 	return 0;
 }
@@ -638,7 +639,7 @@ void fstpshutdown(void)
 /*
  * VV 20260316 - rename function fstponoff and add null parameter test
  */
-static int fstpenable(FILE *fd, char *arg)
+static int fstpenable(char *arg)
 {
 	int val;
 	int ret = 0;
@@ -650,7 +651,7 @@ static int fstpenable(FILE *fd, char *arg)
 
 	int oldval=((pflag & FSTP_TAG) != 0);
 	if (portflag(P_GETFLAG, HUB_TAG)){
-		printoutc(fd, "STP is disabled in hub mode");
+		//printoutc(fd, "STP is disabled in hub mode");
 	} else {
 		val=(val != 0);
 		if (oldval != val)
@@ -658,12 +659,12 @@ static int fstpenable(FILE *fd, char *arg)
 			if (val) { /* START FST */
 				fstinitpkt();
 				fstflag(P_SETFLAG,FSTP_TAG);
-				printoutc(fd, "STP enabled");
+				//printoutc(fd, "STP enabled");
 			} else { /* STOP FST */
 				qtimer_del(fst_timerno);
 				fstflag(P_CLRFLAG,FSTP_TAG);
 				bac_FORALLFUN(validvlan,NUMOFVLAN,fstnewvlan2,NULL);
-				printoutc(fd, "STP disabled");
+				//printoutc(fd, "STP disabled");
 			}
 		}
 	}
@@ -737,6 +738,28 @@ static int fstsetbonus(char *arg)
 	return 0;
 }
 
+
+/* VV 20260318
+ * set switch priority for root switch election
+ */
+static int fstsetpriority(FILE *fd, int n)
+{
+	int ret = 0;
+	if (n <0 || n > 61440) {
+		ret = EINVAL;
+	} else {
+		if ((n % 4096) != 0) {
+			priority = n - (n % 4096);
+			printoutc(fd, "Priority rounded to the multiple of 4096 : %d", priority);
+
+		} else {
+			priority = n;
+		}
+	}
+	return ret;
+}
+
+
 static int fstsetedge(char *arg)
 {
 	int vlan, port, val;
@@ -760,10 +783,11 @@ static int fstsetedge(char *arg)
 static struct comlist cl[]={
 	{"stp","============","SPANNING TREE MENU",NULL,NOARG},
 	{"stp/bonus","VLAN PORT COST","set the port bonus for a vlan",fstsetbonus,STRARG},
-	{"stp/enable","0(default)/1","enable STP 0=OFF 1=ON",fstpenable,STRARG|WITHFILE},
+	{"stp/enable","0(default)/1","enable STP 0=OFF 1=ON",fstpenable,STRARG},
 	{"stp/print","[VLAN]","print spanning tree data for the defined vlan",fstprint,STRARG|WITHFILE},
+	{"stp/priority","PRIORITY" ,"set switch priority (value between 0 and 61440",fstsetpriority,INTARG|WITHFILE},
 	{"stp/setedge","VLAN PORT 0/1","Define an edge port for a vlan 0=N 1=Y",fstsetedge,STRARG},
-	{"stp/showinfo","","show STP info",fstpshowinfo,NOARG|WITHFILE},
+	{"stp/show","","show STP info",fstpshowinfo,NOARG|WITHFILE},
 };
 
 int fstflag(int op,int f)
@@ -795,5 +819,6 @@ void fst_init(int initnumports)
 int writefstpconfig(FILE *fd)
 {
 		printoutc(fd,"stp/enable %d ", (pflag & FSTP_TAG));
+		printoutc(fd,"stp/priority %d ", priority);
 	return 0;
 }
