@@ -347,9 +347,7 @@ static int handle_cmd(int type,int fd,char *inbuf)
 		if (p!=NULL) {
 			inbuf += strlen(p->path);
 			while (*inbuf == ' ' || *inbuf == '\t') inbuf++;
-			printf("ICI!\n");
 			if (p->type & WITHFD) {
-				printf("ICI2\n");
 				if (fd >= 0) {
 					if (p->type & WITHFILE) {
 						printoutc(f,"0000 DATA END WITH '.'");
@@ -369,9 +367,6 @@ static int handle_cmd(int type,int fd,char *inbuf)
 				} else
 					rv = EBADF;
 			} else if (p->type & WITHFILE) {
-				printf("ICI3\n");
-				// VV 20260303 - New line before send result
-				//printoutc(f,"");
 				printoutc(f,"0000 DATA END WITH '.'");
 				switch(p->type & ~WITHFILE){
 					case NOARG: rv=p->doit(f); break;
@@ -380,7 +375,6 @@ static int handle_cmd(int type,int fd,char *inbuf)
 				}
 				printoutc(f,".");
 			} else {
-				printf("ICI4\n");
 				switch(p->type){
 					case NOARG: rv=p->doit(); break;
 					case INTARG: rv=p->doit(atoi(inbuf)); break;

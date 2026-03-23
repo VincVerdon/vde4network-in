@@ -636,8 +636,9 @@ void fstpshutdown(void)
 }
 
 
+
 /*
- * VV 20260316 - rename function fstponoff and add null parameter test
+ * VV 20260316 - renamed function fstponoff and add null parameter test
  */
 static int fstpenable(char *arg)
 {
@@ -688,9 +689,9 @@ static char *decoderole(int vlan, int port)
 static void fstprintactive(int vlan,FILE *fd)
 {
 	int i;
-	printoutc(fd,"FST DATA VLAN %04d %s %s",vlan,
+	printoutc(fd,"STP DATA VLAN %04d %s %s",vlan,
 			memcmp(myid,fsttab[vlan]->root,SWITCHID_LEN)==0?"ROOTSWITCH":"",
-			((pflag & FSTP_TAG)==0)?"FSTP IS DISABLED":"");
+			((pflag & FSTP_TAG)==0)?"STP IS DISABLED":"");
 	printoutc(fd, " ++ root %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
 			fsttab[vlan]->root[0], fsttab[vlan]->root[1], fsttab[vlan]->root[2], fsttab[vlan]->root[3],
 			fsttab[vlan]->root[4], fsttab[vlan]->root[5], fsttab[vlan]->root[6], fsttab[vlan]->root[7]);
@@ -706,6 +707,7 @@ static void fstprintactive(int vlan,FILE *fd)
 	ba_FORALL(fsttab[vlan]->tagged,numports,
 			printoutc(fd," -- Port %04d tagged=%d portcost=%d role=%s",i,1,port_getcost(i),decoderole(vlan,i)),i);
 }	
+
 
 static int fstprint(FILE *fd,char *arg)
 {
@@ -723,6 +725,7 @@ static int fstprint(FILE *fd,char *arg)
 		bac_FORALLFUN(validvlan,NUMOFVLAN,fstprintactive,fd);
 	return 0;
 }
+
 
 static int fstsetbonus(char *arg)
 {
@@ -742,9 +745,16 @@ static int fstsetbonus(char *arg)
 /* VV 20260318
  * set switch priority for root switch election
  */
-static int fstsetpriority(FILE *fd, int n)
+static int fstsetpriority(FILE *fd, char *arg)
 {
 	int ret = 0;
+	int n = priority;
+	if (strcmp(arg, "") != 0) {
+		n = atoi(arg);
+	} else {
+		ret = EINVAL;
+	}
+
 	if (n <0 || n > 61440) {
 		ret = EINVAL;
 	} else {
@@ -759,7 +769,10 @@ static int fstsetpriority(FILE *fd, int n)
 	return ret;
 }
 
-
+/*
+ * Edge port is portfast in Cisco
+ * Disable STP protocol for a port connected to a client
+ */
 static int fstsetedge(char *arg)
 {
 	int vlan, port, val;
@@ -780,13 +793,14 @@ static int fstsetedge(char *arg)
 	return 0;
 }
 
+
 static struct comlist cl[]={
-	{"stp","============","SPANNING TREE MENU",NULL,NOARG},
-	{"stp/bonus","VLAN PORT COST","set the port bonus for a vlan",fstsetbonus,STRARG},
+	{"stp","============","RAPID SPANNING TREE MENU",NULL,NOARG},
 	{"stp/enable","0(default)/1","enable STP 0=OFF 1=ON",fstpenable,STRARG},
+	{"stp/portcost","VLAN PORT COST","set the port cost for a VLAN",fstsetbonus,STRARG},
+	{"stp/portfast","VLAN PORT 0/1","Define an edge port for a vlan 0=N 1=Y",fstsetedge,STRARG},
 	{"stp/print","[VLAN]","print spanning tree data for the defined vlan",fstprint,STRARG|WITHFILE},
-	{"stp/priority","PRIORITY" ,"set switch priority (value between 0 and 61440",fstsetpriority,INTARG|WITHFILE},
-	{"stp/setedge","VLAN PORT 0/1","Define an edge port for a vlan 0=N 1=Y",fstsetedge,STRARG},
+	{"stp/priority","PRIORITY" ,"set switch priority (value between 0 and 61440",fstsetpriority,STRARG|WITHFILE},
 	{"stp/show","","show STP info",fstpshowinfo,NOARG|WITHFILE},
 };
 
@@ -815,10 +829,60 @@ void fst_init(int initnumports)
 }
 #endif
 
+
+//VV 20260221
+static int writestpportsconf(int vlan,FILE *fd)
+{
+	int i;
+
+
+
+	/*
+		printoutc(fd,"STP DATA VLAN %04d %s %s",vlan,
+				memcmp(myid,fsttab[vlan]->root,SWITCHID_LEN)==0?"ROOTSWITCH":"",
+				((pflag & FSTP_TAG)==0)?"STP IS DISABLED":"");
+
+		printoutc(fd, " ++ designated %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
+				fsttab[vlan]->dessw[0], fsttab[vlan]->dessw[1], fsttab[vlan]->dessw[2], fsttab[vlan]->dessw[3],
+				fsttab[vlan]->dessw[4], fsttab[vlan]->dessw[5], fsttab[vlan]->dessw[6], fsttab[vlan]->dessw[7]);
+		printoutc(fd, " ++ rootport %04d cost %d age %d bonusport %04d bonuscost %d",
+				fsttab[vlan]->rootport,
+				nstringtol(fsttab[vlan]->rootcost),
+				qtime()-fsttab[vlan]->roottimestamp,fsttab[vlan]->bonusport,fsttab[vlan]->bonuscost);
+		*/
+
+/*
+		ba_FORALL(fsttab[vlan]->untag,numports,
+				printoutc(fd," -- Port %04d tagged=%d portcost=%d role=%s",i,0,port_getcost(i),decoderole(vlan,i)),i);
+		ba_FORALL(fsttab[vlan]->tagged,numports,
+				printoutc(fd," -- Port %04d tagged=%d portcost=%d role=%s",i,1,port_getcost(i),decoderole(vlan,i)),i);
+
+		ba_FORALL(fsttab[vlan]->edge,numports,
+				printoutc(fd, fsttab[vlan]->edge),
+				i);
+*/
+
+	printoutc(fd,"show");
+
+	return 0;
+}
+
+
+//VV 20260221
+static int writestpportsconfig(FILE *fd)
+{
+	bac_FORALLFUN(validvlan,NUMOFVLAN, writestpportsconf,fd);
+	return 0;
+}
+
+
 //VV 20260306
 int writefstpconfig(FILE *fd)
 {
 		printoutc(fd,"stp/enable %d ", (pflag & FSTP_TAG));
 		printoutc(fd,"stp/priority %d ", priority);
+
+		writestpportsconfig(fd);
+
 	return 0;
 }

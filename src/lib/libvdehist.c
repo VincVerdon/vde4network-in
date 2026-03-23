@@ -284,8 +284,7 @@ static void update_prompt(char *buf) {
     for (i = 0; i < strlen(buf); i++) {
         if (buf[i] != '\0') {
             if (buf[i] == '$' && buf[i+1] == ' ') {
-                //free(prompt);
-                asprintf(&prompt, "%s># ", res);
+                asprintf(&prompt, "<%s># ", res);
                 i = strlen(buf);
             } else {
             	asprintf(&res, "%s%c", res, buf[i]);

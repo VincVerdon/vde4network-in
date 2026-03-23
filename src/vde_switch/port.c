@@ -588,12 +588,14 @@ void handle_in_packet(struct endpoint *ep,  struct packet *packet, int len)
 		if (pflag & HUB_TAG) { /* this is a HUB */
 			int i;
 #ifndef VDE_PQ2
-			for(i = 1; i < numports; i++)
+			//VV 20260322 hub bug corrected i=0
+			for(i = 0; i < numports; i++)
 				if((i != port) && (portv[i] != NULL))
 					SEND_PACKET_PORT(portv[i],i,packet,len);
 #else
 			void *tmpbuf=NULL;
-			for(i = 1; i < numports; i++)
+			//VV 20260322 hub bug corrected i=0
+			for(i = 0; i < numports; i++)
 				if((i != port) && (portv[i] != NULL))
 					SEND_PACKET_PORT(portv[i],i,packet,len,&tmpbuf);
 #endif
@@ -1307,6 +1309,9 @@ static struct comlist cl[]={
 	{"vlan/remove","VLAN","remove the VLAN with tag N",vlanremove,INTARG},
 };
 
+/*
+ *Port init
+ */
 void port_init(int initnumports)
 {
 	if((numports=initnumports) <= 0) {

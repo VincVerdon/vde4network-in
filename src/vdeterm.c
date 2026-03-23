@@ -20,7 +20,7 @@
 #include <termios.h>
 #include <libvdehist.h>
 
-char *prompt = "V4N># ";
+char *prompt = "<V4N># ";
 static struct termios tiop;
 /* don't reset terminal too early.
 	 tnx Serge Hallyn  <serge.hallyn@ubuntu.com> */
@@ -102,7 +102,7 @@ static char *copy_header_prompt (int vdefd,int termfd,char *sock)
 				//displays received data to term
 				write(termfd,buf,n+1);
 				// Prompt displayed in terminal
-				asprintf(&prompt,"%s># ",buf+n+1);
+				asprintf(&prompt,"<%s># ",buf+n+1);
 				//asprintf(&prompt,"%s[%s]: ",buf+n+1,sock);
 				return prompt;
 			} else {
