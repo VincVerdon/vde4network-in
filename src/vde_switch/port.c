@@ -589,13 +589,13 @@ void handle_in_packet(struct endpoint *ep,  struct packet *packet, int len)
 			int i;
 #ifndef VDE_PQ2
 			//VV 20260322 hub bug corrected i=0
-			for(i = 0; i < numports; i++)
+			for(i = 1; i < numports; i++)
 				if((i != port) && (portv[i] != NULL))
 					SEND_PACKET_PORT(portv[i],i,packet,len);
 #else
 			void *tmpbuf=NULL;
 			//VV 20260322 hub bug corrected i=0
-			for(i = 0; i < numports; i++)
+			for(i = 1; i < numports; i++)
 				if((i != port) && (portv[i] != NULL))
 					SEND_PACKET_PORT(portv[i],i,packet,len,&tmpbuf);
 #endif
@@ -919,7 +919,7 @@ static int print_ptable(FILE *fd,char *arg)
 			return print_port(fd,i,0);
 		}
 	} else {
-		for (i=0;i<numports;i++) 
+		for (i=1;i<numports;i++)
 			print_port(fd,i,0);
 		return 0;
 	}
@@ -937,7 +937,7 @@ static int print_ptableall(FILE *fd,char *arg)
 			return print_port(fd,i,1);
 		}
 	} else {
-		for (i=0;i<numports;i++) 
+		for (i=1;i<numports;i++)
 			print_port(fd,i,1);
 		return 0;
 	}
@@ -967,7 +967,7 @@ static int portresetcounters(char *arg)
 			return 0;
 		}
 	} else {
-		for (i=0;i<numports;i++)
+		for (i=1;i<numports;i++)
 			portzerocounter(i);
 		return 0;
 	}
@@ -1388,7 +1388,7 @@ int writevlanconfig(FILE *fd)
 int writeportconfig(FILE *fd)
 {
 	int i;
-	for (i=0;i<numports;i++) {
+	for (i=1;i<numports;i++) {
 		printoutc(fd,"port/setvlan %d %d", i, portv[i]->vlanuntag);
 	}
 	bac_FORALLFUN(validvlan,NUMOFVLAN,vlanwritetrunkcreate,fd);
