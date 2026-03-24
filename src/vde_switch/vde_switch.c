@@ -393,7 +393,7 @@ static int parse_globopt(int c, char *optarg)
 			//priority &= 0xffff;
 			if ((priority % 4096) != 0) {
 				priority = priority - (priority % 4096);
-				printlog(LOG_INFO, "Priority rounded to a multiple of 4096 : %d", priority);
+				printlog(LOG_WARNING, "Priority rounded to a multiple of 4096 : %d", priority);
 			}
 			break;
 #endif
@@ -604,12 +604,25 @@ static void start_modules(void);
 int main(int argc, char **argv)
 {
 	init_prompt();
+
 	set_switchmac();
 	setsighandlers();
 	start_modules();
+
 	parse_args(argc,argv);
 	atexit(cleanup);
 	hash_init(hash_size);
+
+	// VV 20260324 - Add start info at start
+	time_t now;
+	time(&now);
+	struct tm *t = localtime(&now);
+	char *datetime=NULL;
+	asprintf(&datetime,"%04d-%02d-%02d %02d:%02d:%02d",
+	  t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec);
+	printlog(LOG_INFO, "Starting switch at %s", datetime);
+	free(datetime);
+
 #ifdef FSTP
 	fst_init(numports);
 #endif
@@ -617,6 +630,7 @@ int main(int argc, char **argv)
 	init_mods();
 	loadrcfile();
 	qtimer_init();
+
 	main_loop();
 	return 0;
 }

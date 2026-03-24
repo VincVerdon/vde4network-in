@@ -806,7 +806,7 @@ static void init(void)
 static int vde_logout() 
 { 
 	//VV 20251211
-	printlog(LOG_WARNING,"VDETerm logout");
+	printlog(LOG_INFO,"Terminal logout");
 	return -1; 
 }
 
