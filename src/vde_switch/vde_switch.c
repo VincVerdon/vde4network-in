@@ -389,7 +389,12 @@ static int parse_globopt(int c, char *optarg)
 			break;
 		case PRIORITY_ARG:
 			sscanf(optarg,"%i",&priority);
-			priority &= 0xffff;
+			// VV 20260324 - round priority
+			//priority &= 0xffff;
+			if ((priority % 4096) != 0) {
+				priority = priority - (priority % 4096);
+				printlog(LOG_INFO, "Priority rounded to a multiple of 4096 : %d", priority);
+			}
 			break;
 #endif
 		case MACADDR_ARG:

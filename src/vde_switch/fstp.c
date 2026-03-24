@@ -609,14 +609,17 @@ static void fstinitpkt(void)
 	fst_timerno=qtimer_add(helloperiod,0,fst_hello,NULL);
 }
 
-// VV 20260305 some aspect modif
+
+// VV 20260305 some aspect modif + add BID
 static int fstpshowinfo(FILE *fd)
 {
 	printoutc(fd,"STP = %s",(pflag & FSTP_TAG)?"true":"false");
+	printoutc(fd,"Priority = %d (0x%x)", priority, priority);
 	printoutc(fd,"MAC = %02x:%02x:%02x:%02x:%02x:%02x",
 			switchmac[0], switchmac[1], switchmac[2], switchmac[3], switchmac[4], switchmac[5]);
-	printoutc(fd,"Priority =  %d", priority);
-
+	printoutc(fd,"BID = %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
+				(priority/256),0,switchmac[0], switchmac[1], switchmac[2], switchmac[3], switchmac[4], switchmac[5]);
+	printoutc(fd, "Myid : %s", myid);
 	return 0;
 }
 
@@ -640,7 +643,7 @@ void fstpshutdown(void)
 /*
  * VV 20260316 - renamed function fstponoff and add null parameter test
  */
-static int fstpenable(char *arg)
+static int fstenable(char *arg)
 {
 	int val;
 	int ret = 0;
@@ -760,14 +763,28 @@ static int fstsetpriority(FILE *fd, char *arg)
 	} else {
 		if ((n % 4096) != 0) {
 			priority = n - (n % 4096);
-			printoutc(fd, "Priority rounded to the multiple of 4096 : %d", priority);
-
+			printoutc(fd, "Priority rounded to a multiple of 4096 : %d", priority);
 		} else {
 			priority = n;
+		}
+		//re-init STP
+		fst_init(numports);
+		//Must restart STP
+		//Stop STP
+		qtimer_del(fst_timerno);
+		fstflag(P_CLRFLAG,FSTP_TAG);
+		bac_FORALLFUN(validvlan,NUMOFVLAN,fstnewvlan2,NULL);
+		//Start STP
+		fstinitpkt();
+		fstflag(P_SETFLAG,FSTP_TAG);
+
+		if (portflag(P_GETFLAG, HUB_TAG)){
+			//printoutc(fd, "STP is disabled in hub mode");
 		}
 	}
 	return ret;
 }
+
 
 /*
  * Edge port is portfast in Cisco
@@ -796,7 +813,7 @@ static int fstsetedge(char *arg)
 
 static struct comlist cl[]={
 	{"stp","============","RAPID SPANNING TREE MENU",NULL,NOARG},
-	{"stp/enable","0(default)/1","enable STP 0=OFF 1=ON",fstpenable,STRARG},
+	{"stp/enable","0(default)/1","enable STP 0=OFF 1=ON",fstenable,STRARG},
 	{"stp/portcost","VLAN PORT COST","set the port cost for a VLAN",fstsetbonus,STRARG},
 	{"stp/portfast","VLAN PORT 0/1","Define an edge port for a vlan 0=N 1=Y",fstsetedge,STRARG},
 	{"stp/print","[VLAN]","print spanning tree data for the defined vlan",fstprint,STRARG|WITHFILE},
