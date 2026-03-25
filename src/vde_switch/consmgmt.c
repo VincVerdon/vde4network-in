@@ -384,9 +384,8 @@ static int handle_cmd(int type,int fd,char *inbuf)
 		}
 
 		if (rv == 0) {
-			//printoutc(f,"1000 Success");
+			printoutc(f,"1000 Success");
 			//VV 20251212
-			printoutc(f,"1000 \n");
 			//printlog(LOG_INFO,"Success command");
 
 		} else if (rv > 0) {

@@ -1285,7 +1285,7 @@ char *port_descr(int portno, int epn) {
 }
 
 //VV 20260228 remove entries - rename vlan/addport to vlan/addtrunkport
-static struct comlist cl[]={
+struct comlist cl[]={
 	{"port","============","PORT STATUS MENU",NULL,NOARG},
 	{"port/allocatable","PORT 0/1","Is the port allocatable as unnamed? 1=Y 0=N",portallocatable,STRARG},
 #ifdef VDE_PQ2
@@ -1306,6 +1306,7 @@ static struct comlist cl[]={
 	{"vlan/print","[VLAN]","print the list of defined vlan",vlanprintall,STRARG|WITHFILE},
 	{"vlan/remove","VLAN","remove the VLAN with tag N",vlanremove,INTARG},
 };
+
 
 /*
  *Port init
@@ -1344,6 +1345,15 @@ void port_init(int initnumports)
 		free(param);
 	}
 
+}
+
+
+/*VV 20260324 - port menu re-init
+ * usefull for STP priority
+ */
+int port_menu_init() {
+	ADDCL(cl);
+	return 0;
 }
 
 

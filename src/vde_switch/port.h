@@ -90,7 +90,6 @@ int port_getcost(int port);
 
 #endif
 
-
 // VV functions declaration
 int writevlanconfig(FILE *fd);
 int writeportconfig(FILE *fd);
@@ -98,4 +97,4 @@ int writesethub(FILE *fd);
 int get_ports_number();
 int portsethub(int val);
 int get_hub_state();
-
+int port_menu_init();

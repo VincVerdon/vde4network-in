@@ -622,7 +622,6 @@ int main(int argc, char **argv)
 	  t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec);
 	printlog(LOG_INFO, "Starting switch at %s", datetime);
 	free(datetime);
-
 #ifdef FSTP
 	fst_init(numports);
 #endif

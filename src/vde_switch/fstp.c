@@ -619,7 +619,6 @@ static int fstpshowinfo(FILE *fd)
 			switchmac[0], switchmac[1], switchmac[2], switchmac[3], switchmac[4], switchmac[5]);
 	printoutc(fd,"BID = %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
 				(priority/256),0,switchmac[0], switchmac[1], switchmac[2], switchmac[3], switchmac[4], switchmac[5]);
-	printoutc(fd, "Myid : %s", myid);
 	return 0;
 }
 
@@ -709,6 +708,8 @@ static void fstprintactive(int vlan,FILE *fd)
 			printoutc(fd," -- Port %04d tagged=%d portcost=%d role=%s",i,0,port_getcost(i),decoderole(vlan,i)),i);
 	ba_FORALL(fsttab[vlan]->tagged,numports,
 			printoutc(fd," -- Port %04d tagged=%d portcost=%d role=%s",i,1,port_getcost(i),decoderole(vlan,i)),i);
+
+	printoutc(fd,"");
 }	
 
 
@@ -769,6 +770,8 @@ static int fstsetpriority(FILE *fd, char *arg)
 		}
 		//re-init STP
 		fst_init(numports);
+		// Must re-init ports otherwise port menu disappeared !
+		port_menu_init();
 		//Must restart STP
 		//Stop STP
 		qtimer_del(fst_timerno);
@@ -778,9 +781,6 @@ static int fstsetpriority(FILE *fd, char *arg)
 		fstinitpkt();
 		fstflag(P_SETFLAG,FSTP_TAG);
 
-		if (portflag(P_GETFLAG, HUB_TAG)){
-			//printoutc(fd, "STP is disabled in hub mode");
-		}
 	}
 	return ret;
 }
@@ -847,6 +847,13 @@ void fst_init(int initnumports)
 #endif
 
 
+static int portbonusprint(FILE *fd, int vlan, int i) {
+	if (fsttab[vlan]->bonuscost) {
+		printoutc(fd,"stp/portcost %d %d %d", vlan, i, fsttab[vlan]->bonuscost);
+	}
+	return 0;
+}
+
 //VV 20260221
 static int writestpportsconf(int vlan,FILE *fd)
 {
@@ -878,8 +885,18 @@ static int writestpportsconf(int vlan,FILE *fd)
 				printoutc(fd, fsttab[vlan]->edge),
 				i);
 */
+	//write portfast conf
+	ba_FORALL(fsttab[vlan]->edge,numports,
+		printoutc(fd, "stp/portfast %d %d 1", vlan, i),
+		i);
 
-	printoutc(fd,"show");
+	//write portcost conf
+	ba_FORALL(fsttab[vlan]->untag,numports,
+		portbonusprint(fd, vlan, i)
+		,i);
+	ba_FORALL(fsttab[vlan]->tagged,numports,
+		portbonusprint(fd, vlan, i)
+		,i);
 
 	return 0;
 }
