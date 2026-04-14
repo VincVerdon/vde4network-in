@@ -20,6 +20,8 @@
 #include <grp.h>
 #include <pwd.h>
 #include <ctype.h>
+/*#include <limits.h>
+#include <stdint.h>*/
 
 #include <config.h>
 #include <vde.h>
@@ -43,6 +45,13 @@ static int stdqlen=128;
 #endif
 
 static struct port **portv;
+
+// Bug nb ports correction from vde team
+static int external_numports(void)
+{
+	return (numports > 0) ? numports - 1 : 0;
+}
+
 
 #ifdef DEBUGOPT
 #define DBGPORTNEW (dl) 
@@ -137,7 +146,7 @@ static int alloc_port(unsigned int portno)
 	int i=portno;
 	if (i==0) {
 		/* take one */
-		for (i=0;i<numports && portv[i] != NULL &&
+		for (i=1;i<numports && portv[i] != NULL &&
 				(portv[i]->ep != NULL || portv[i]->flag & NOTINPOOL) ;i++)
 			;
 	} else if (i<0) /* special case MGMT client port */
@@ -588,14 +597,12 @@ void handle_in_packet(struct endpoint *ep,  struct packet *packet, int len)
 		if (pflag & HUB_TAG) { /* this is a HUB */
 			int i;
 #ifndef VDE_PQ2
-			//VV 20260322 hub bug corrected i=0
-			for(i = 0; i < numports; i++)
+			for(i = 1; i < numports; i++)
 				if((i != port) && (portv[i] != NULL))
 					SEND_PACKET_PORT(portv[i],i,packet,len);
 #else
 			void *tmpbuf=NULL;
-			//VV 20260322 hub bug corrected i=0
-			for(i = 0; i < numports; i++)
+			for(i = 1; i < numports; i++)
 				if((i != port) && (portv[i] != NULL))
 					SEND_PACKET_PORT(portv[i],i,packet,len,&tmpbuf);
 #endif
@@ -722,7 +729,7 @@ void handle_in_packet(struct endpoint *ep,  struct packet *packet, int len)
 
 static int showinfo(FILE *fd)
 {
-	printoutc(fd,"Ports = %d",numports);
+	printoutc(fd,"Ports = %d",external_numports());
 	printoutc(fd,"HUB = %s",(pflag & HUB_TAG)?"true":"false");
 #ifdef PORTCOUNTERS
 	printoutc(fd,"Counters = true");
@@ -735,14 +742,16 @@ static int showinfo(FILE *fd)
 	return 0;
 }
 
+
 /*
  * VV 20260304
  * Returns ports number
  */
 int get_ports_number()
 {
-	return numports;
+	return external_numports();
 }
+
 
 /*
  * VV 20260304
@@ -825,110 +834,34 @@ static int print_port(FILE *fd,int i,int inclinactive)
 {
 	//struct endpoint *ep;
 	if (portv[i] != NULL && (inclinactive || portv[i]->ep!=NULL)) {
-		printoutc(fd,"Port %04d untagged_vlan=%04d %s - %sUnnamed Allocatable",
-				i,portv[i]->vlanuntag,
-				portv[i]->ep?" ACTIVE ":"INACTIVE",
-				(portv[i]->flag & NOTINPOOL)?"NOT ":"");
-/*
 #ifdef PORTCOUNTERS
-		printoutc(fd," IN:  pkts %10lld          bytes %20lld",portv[i]->pktsin,portv[i]->bytesin);
-		printoutc(fd," OUT: pkts %10lld          bytes %20lld",portv[i]->pktsout,portv[i]->bytesout);
+		printoutc(fd, "%02d      %04d    %s    %4lld pkts  %8lld bytes  %4lld pkts  %8lld bytes",
+			i,
+			portv[i]->vlanuntag,
+			portv[i]->ep?" ACTIVE ":"INACTIVE",
+			portv[i]->pktsin, portv[i]->bytesin,
+			portv[i]->pktsout, portv[i]->bytesout);
+#else
+		printoutc(fd, "%02d      %04d    %s",
+			i,
+			portv[i]->vlanuntag,
+			portv[i]->ep?" ACTIVE ":"INACTIVE");
 #endif
-	for (ep=portv[i]->ep; ep != NULL; ep=ep->next) {
-		printoutc(fd,"  -- endpoint ID %04d module %-12s: %s",ep->fd_ctl,
-			portv[i]->ms->modname,(ep->descr)?ep->descr:"no endpoint description");
-#ifdef VDE_PQ2
-		printoutc(fd,"              unsent packets: %d max %d",ep->vdepq_count,ep->vdepq_max);
-#endif
-	}*/
 		return 0;
 	} else
 		return ENXIO;
 }
-
-
-/*Prints port configuration in console with packets count
- * return : 0 OR ERR code
- */
-static int print_active_port_count(FILE *fd,int i,int inclinactive)
-{
-	//struct endpoint *ep;
-	if (portv[i]->ep!=NULL) {
-		printoutc(fd,"Port %04d untagged_vlan=%04d %s - %sUnnamed Allocatable",
-				i,portv[i]->vlanuntag,
-				portv[i]->ep?" ACTIVE ":"INACTIVE",
-				(portv[i]->flag & NOTINPOOL)?"NOT ":"");
-
-#ifdef PORTCOUNTERS
-		printoutc(fd," IN:  pkts %10lld          bytes %20lld",portv[i]->pktsin,portv[i]->bytesin);
-		printoutc(fd," OUT: pkts %10lld          bytes %20lld",portv[i]->pktsout,portv[i]->bytesout);
-#endif
-/*	for (ep=portv[i]->ep; ep != NULL; ep=ep->next) {
-		printoutc(fd,"  -- endpoint ID %04d module %-12s: %s",ep->fd_ctl,
-			portv[i]->ms->modname,(ep->descr)?ep->descr:"no endpoint description");
-#ifdef VDE_PQ2
-		printoutc(fd,"              unsent packets: %d max %d",ep->vdepq_count,ep->vdepq_max);
-#endif
-	}*/
-		return 0;
-	} else
-		return ENXIO;
-}
-
-
-/*
-static int print_port(FILE *fd,int i,int inclinactive)
-{
-	struct endpoint *ep;
-	if (portv[i] != NULL && (inclinactive || portv[i]->ep!=NULL)) {
-		printoutc(fd,"Port %04d untagged_vlan=%04d %sACTIVE - %sUnnamed Allocatable",
-				i,portv[i]->vlanuntag,
-				portv[i]->ep?"":"IN",
-				(portv[i]->flag & NOTINPOOL)?"NOT ":"");
-
-#ifdef PORTCOUNTERS
-		printoutc(fd," IN:  pkts %10lld          bytes %20lld",portv[i]->pktsin,portv[i]->bytesin);
-		printoutc(fd," OUT: pkts %10lld          bytes %20lld",portv[i]->pktsout,portv[i]->bytesout);
-#endif
-		for (ep=portv[i]->ep; ep != NULL; ep=ep->next) {
-			printoutc(fd,"  -- endpoint ID %04d module %-12s: %s",ep->fd_ctl,
-					portv[i]->ms->modname,(ep->descr)?ep->descr:"no endpoint description");
-#ifdef VDE_PQ2
-			printoutc(fd,"              unsent packets: %d max %d",ep->vdepq_count,ep->vdepq_max);
-#endif
-		}
-		return 0;
-	} else
-		return ENXIO;
-}
-*/
-
-
-/*Prints all ports configuration in console
- * return : 0 or ERR code
- */
-/* VV
-static int print_ptable(FILE *fd,char *arg)
-{
-	int i;
-	if (*arg != 0) {
-		i=atoi(arg);
-		if (i <0 || i>=numports)
-			return EINVAL;
-		else {
-			return print_port(fd,i,0);
-		}
-	} else {
-		for (i=0;i<numports;i++)
-			print_port(fd,i,0);
-		return 0;
-	}
-}*/
 
 
 static int print_ptableall(FILE *fd,char *arg)
 {
 	int i;
+#ifdef PORTCOUNTERS
+	printoutc(fd,"Port    Vlan    Status         IN                         OUT            ");
+#else
+	printoutc(fd,"Port    Vlan    Status          ");
+#endif
+	printoutc(fd,"--------------------------------------------------------------------------------");
 	if (*arg != 0) {
 		i=atoi(arg);
 		if (i <0 || i>=numports)
@@ -937,7 +870,7 @@ static int print_ptableall(FILE *fd,char *arg)
 			return print_port(fd,i,1);
 		}
 	} else {
-		for (i=0;i<numports;i++)
+		for (i=1;i<numports;i++)
 			print_port(fd,i,1);
 		return 0;
 	}
@@ -967,7 +900,7 @@ static int portresetcounters(char *arg)
 			return 0;
 		}
 	} else {
-		for (i=0;i<numports;i++)
+		for (i=1;i<numports;i++)
 			portzerocounter(i);
 		return 0;
 	}
@@ -990,6 +923,7 @@ int portsethub(int val)
 	}
 	return 0;
 }
+
 
 static int portsetvlan(char *arg)
 {
@@ -1023,6 +957,7 @@ static int portsetvlan(char *arg)
 	return 0;
 }
 
+
 static int vlancreate_nocheck(int vlan)
 {
 	int rv=0;
@@ -1044,6 +979,7 @@ static int vlancreate_nocheck(int vlan)
 	}
 }
 
+
 static int vlancreate(int vlan)
 {
 	if (vlan > 0 && vlan < NUMOFVLAN-1) { /*vlan NOVLAN (0xfff a.k.a. 4095) is reserved */
@@ -1054,6 +990,7 @@ static int vlancreate(int vlan)
 	} else
 		return EINVAL;
 }
+
 
 static int vlanremove(int vlan)
 {
@@ -1084,6 +1021,7 @@ static int vlanremove(int vlan)
 		return EINVAL;
 }
 
+
 /* Add a trunk port for a vlan
  * Renamed from initial function vlanaddport() - VV
  */
@@ -1106,6 +1044,7 @@ static int vlanaddtrunkport(char *arg)
 	ba_set(vlant[vlan].table,port);
 	return 0;
 }
+
 
 /* Delete a trunk port from a vlan
  * Renamed from initial function vlandelport() - VV
@@ -1132,6 +1071,7 @@ static int vlandeltrunkport(char *arg)
 	hash_delete_port(port);
 	return 0;
 }
+
 
 #define STRSTATUS(PN,V) \
 	((ba_check(vlant[(V)].notlearning,(PN))) ? "Discarding" : \
@@ -1200,6 +1140,7 @@ static int vlanprint(FILE *fd,char *arg)
 }
 */
 
+
 // VV 20260227 Display modification
 static void vlanprintelem(int vlan,FILE *fd)
 {
@@ -1236,7 +1177,6 @@ static int vlanprintall(FILE *fd,char *arg)
 
 
 /* NOT sure about the effects of changing address on FSTP */
-
 #if 0
 static int setmacaddr(char *strmac)
 {
@@ -1257,6 +1197,7 @@ static int setmacaddr(char *strmac)
 }
 #endif
 
+
 uid_t port_user(int port)
 {
 	if (port<0 || port>=numports || portv[port]==NULL)
@@ -1264,6 +1205,7 @@ uid_t port_user(int port)
 	else
 		return portv[port]->curuser;
 }
+
 
 char *port_descr(int portno, int epn) {
 	if (portno<0 || portno>=numports)
@@ -1284,6 +1226,7 @@ char *port_descr(int portno, int epn) {
 	}
 }
 
+
 //VV 20260228 remove entries - rename vlan/addport to vlan/addtrunkport
 struct comlist cl[]={
 	{"port","============","PORT STATUS MENU",NULL,NOARG},
@@ -1294,7 +1237,6 @@ struct comlist cl[]={
 #endif
 	{"port/print","[PORT]","print the port table",print_ptableall,STRARG|WITHFILE},
 #ifdef PORTCOUNTERS
-	{"port/printcount","[PORT]","print the active ports with packets count",print_active_port_count,STRARG|WITHFILE},
 	{"port/resetcounter","[PORT]","reset the port (PORT) counters",portresetcounters,STRARG},
 #endif
 	{"port/setvlan","PORT VLAN","set port VLAN (untagged)",portsetvlan,STRARG},
@@ -1335,7 +1277,7 @@ void port_init(int initnumports)
 	}
 
 	//VV 20260310 - automatic port initialization at start
-	for(int i = 0; i<numports; i++) {
+	for(int i = 1; i<numports; i++) {
 		printlog(LOG_INFO, "INIT port %d", i);
 		portcreate(i);
 		char *param=NULL;
@@ -1396,7 +1338,7 @@ int writevlanconfig(FILE *fd)
 int writeportconfig(FILE *fd)
 {
 	int i;
-	for (i=0;i<numports;i++) {
+	for (i=1;i<numports;i++) {
 		printoutc(fd,"port/setvlan %d %d", i, portv[i]->vlanuntag);
 	}
 	bac_FORALLFUN(validvlan,NUMOFVLAN,vlanwritetrunkcreate,fd);

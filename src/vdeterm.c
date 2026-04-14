@@ -20,7 +20,11 @@
 #include <termios.h>
 #include <libvdehist.h>
 
-char *prompt = "<V4N># ";
+// VV 20260326 - add baseprompt motif
+char *prompt = "v4n> ";
+char baseprompt[] = "%s> ";
+
+
 static struct termios tiop;
 /* don't reset terminal too early.
 	 tnx Serge Hallyn  <serge.hallyn@ubuntu.com> */
@@ -101,9 +105,8 @@ static char *copy_header_prompt (int vdefd,int termfd,char *sock)
 					n--;
 				//displays received data to term
 				write(termfd,buf,n+1);
-				// Prompt displayed in terminal
-				asprintf(&prompt,"<%s># ",buf+n+1);
-				//asprintf(&prompt,"%s[%s]: ",buf+n+1,sock);
+				// VV - 20260324 modified prompt displayed in terminal
+				asprintf(&prompt, baseprompt, buf+n+1);
 				return prompt;
 			} else {
 				write(termfd,buf,n);

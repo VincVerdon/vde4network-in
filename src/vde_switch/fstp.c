@@ -913,10 +913,9 @@ static int writestpportsconfig(FILE *fd)
 //VV 20260306
 int writefstpconfig(FILE *fd)
 {
-		printoutc(fd,"stp/enable %d ", (pflag & FSTP_TAG));
-		printoutc(fd,"stp/priority %d ", priority);
-
-		writestpportsconfig(fd);
-
+	writestpportsconfig(fd);
+	printoutc(fd,"stp/priority %d ", priority);
+	printoutc(fd,"stp/enable %d ", (pflag & FSTP_TAG));
 	return 0;
 }
+

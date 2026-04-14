@@ -34,6 +34,8 @@
 #define HISTORYSIZE 32
 
 extern char *prompt;
+// VV 20260324 - add baseprompt def (from consmgmt.c file)
+extern char baseprompt[];
 
 static char **commandlist;
 
@@ -261,7 +263,6 @@ static void redraw_line(struct vdehiststat *st,int prompt_too)
 		}
 		else {
 			fprintf(ms,"%s",st->linebuf);
-			//fprintf(ms,"RIEN");
 		}
 		for (j=0;j<tail;j++)
 			fputc('\010',ms);
@@ -284,7 +285,7 @@ static void update_prompt(char *buf) {
     for (i = 0; i < strlen(buf); i++) {
         if (buf[i] != '\0') {
             if (buf[i] == '$' && buf[i+1] == ' ') {
-                asprintf(&prompt, "<%s># ", res);
+                asprintf(&prompt, baseprompt, res);
                 i = strlen(buf);
             } else {
             	asprintf(&res, "%s%c", res, buf[i]);
