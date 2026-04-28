@@ -94,4 +94,4 @@ struct plugin {
 // VV functions declaration
 void init_prompt();
 int writemainconfig(FILE *fd);
-
+int savenamefile();

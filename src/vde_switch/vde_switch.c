@@ -5,6 +5,7 @@
  * --pidfile/-p and cleanup management by Mattia Belletti.
  * some code remains from uml_switch Copyright 2001, 2002 Jeff Dike and others
  * Modified by Ludovico Gardenghi 2005
+ * VVerdon version 20260427
  */
 
 #define _GNU_SOURCE
@@ -629,6 +630,9 @@ int main(int argc, char **argv)
 	port_init(numports + 1);
 	init_mods();
 	loadrcfile();
+	//Maj hostname
+	init_prompt();
+	savenamefile();
 	qtimer_init();
 
 	main_loop();

@@ -473,7 +473,7 @@ static int savescript(char *path)
  * Save switchname in file
  * if pidfile isn't defined then do nothing
  */
-static int savenamefile()
+int savenamefile()
 {
 	if (pidfile) {
 		FILE *f;

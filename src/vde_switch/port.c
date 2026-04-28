@@ -178,8 +178,9 @@ static int alloc_port(unsigned int portno)
 #endif
 				port->flag=0;
 				port->sender=NULL;
-				port->vlanuntag=0;
-				ba_set(vlant[0].table,i);
+				//VV 20260427 changed default vlan from 0 to 1
+				port->vlanuntag=1;
+				ba_set(vlant[1].table,i);
 			}
 		}
 		return i;
@@ -835,17 +836,24 @@ static int print_port(FILE *fd,int i,int inclinactive)
 	//struct endpoint *ep;
 	if (portv[i] != NULL && (inclinactive || portv[i]->ep!=NULL)) {
 #ifdef PORTCOUNTERS
-		printoutc(fd, "%02d      %04d    %s    %4lld pkts  %8lld bytes  %4lld pkts  %8lld bytes",
-			i,
-			portv[i]->vlanuntag,
-			portv[i]->ep?" ACTIVE ":"INACTIVE",
-			portv[i]->pktsin, portv[i]->bytesin,
-			portv[i]->pktsout, portv[i]->bytesout);
+		if (portv[i]->ep) {
+			printoutc(fd, "%02d      %04d      %s    %4lld pkts %8lld bytes   %4lld pkts %8lld bytes",
+				i,
+				portv[i]->vlanuntag,
+				portv[i]->ep?"ACTIVE  ":"INACTIVE",
+				portv[i]->pktsin, portv[i]->bytesin,
+				portv[i]->pktsout, portv[i]->bytesout);
+		} else {
+			printoutc(fd, "%02d      %04d      %s",
+				i,
+				portv[i]->vlanuntag,
+				portv[i]->ep?"ACTIVE  ":"INACTIVE");
+		}
 #else
-		printoutc(fd, "%02d      %04d    %s",
+		printoutc(fd, "%02d      %04d      %s",
 			i,
 			portv[i]->vlanuntag,
-			portv[i]->ep?" ACTIVE ":"INACTIVE");
+			portv[i]->ep?"ACTIVE  ":"INACTIVE");
 #endif
 		return 0;
 	} else
@@ -857,9 +865,9 @@ static int print_ptableall(FILE *fd,char *arg)
 {
 	int i;
 #ifdef PORTCOUNTERS
-	printoutc(fd,"Port    Vlan    Status         IN                         OUT            ");
+	printoutc(fd,"Port    Vlan      Status         IN                         OUT            ");
 #else
-	printoutc(fd,"Port    Vlan    Status          ");
+	printoutc(fd,"Port    Vlan      Status          ");
 #endif
 	printoutc(fd,"--------------------------------------------------------------------------------");
 	if (*arg != 0) {
@@ -982,7 +990,8 @@ static int vlancreate_nocheck(int vlan)
 
 static int vlancreate(int vlan)
 {
-	if (vlan > 0 && vlan < NUMOFVLAN-1) { /*vlan NOVLAN (0xfff a.k.a. 4095) is reserved */
+	// VV 20260427 changed default vlan from 0 to 1
+	if (vlan > 1 && vlan < NUMOFVLAN-1) { /*vlan NOVLAN (0xfff a.k.a. 4095) is reserved */
 		if (bac_check(validvlan,vlan))
 			return EEXIST;
 		else 
@@ -994,7 +1003,8 @@ static int vlancreate(int vlan)
 
 static int vlanremove(int vlan)
 {
-	if (vlan >= 0 && vlan < NUMOFVLAN) {
+	// VV 20260427 changed default vlan from 0 to 1
+	if (vlan >= 4 && vlan < NUMOFVLAN) {
 		if (bac_check(validvlan,vlan)) {
 			int i,used=0;
 			ba_FORALL(vlant[vlan].table,numports,used++,i);
@@ -1144,15 +1154,21 @@ static int vlanprint(FILE *fd,char *arg)
 // VV 20260227 Display modification
 static void vlanprintelem(int vlan,FILE *fd)
 {
+	// VV 20260427 changed default vlan from 0 to 1 - vlan 0 is masked
+	if (vlan == 0) {
+		return;
+	}
 	int i;
 	printoutc(fd,"VLAN %04d",vlan);
+	printoutc(fd,"Port    Tag           State         Status        ");
+	printoutc(fd,"-----------------------------------------------------------");
 	ba_FORALL(vlant[vlan].table,numports,
-		printoutc(fd," -- Port %04d - %s - active=%d - status=%s",
+			printoutc(fd,"%02d      %s      %s      %s",
 			i,
-			(portv[i]->vlanuntag != vlan)?"tagged (TRUNK)":"untagged      ", //VV
-			portv[i]->ep != NULL,
-			STRSTATUS(i,vlan)
-	),i);
+			(portv[i]->vlanuntag != vlan)?"TRUNK   ":"untagged", //VV
+			portv[i]->ep?"ACTIVE  ":"INACTIVE",
+			STRSTATUS(i,vlan)),i);
+	printoutc(fd,"");
 }
 
 static int vlanprintall(FILE *fd,char *arg)
@@ -1160,7 +1176,8 @@ static int vlanprintall(FILE *fd,char *arg)
 	if (*arg != 0) {
 		int vlan;
 		vlan=atoi(arg);
-		if (vlan > 0 && vlan < NUMOFVLAN-1) {
+		// VV 20260427 changed default vlan from 0 to 1
+		if (vlan >= 1 && vlan < NUMOFVLAN-1) {
 			if (bac_check(validvlan,vlan)) {
 				vlanprintelem(vlan,fd);
 			} else {
@@ -1271,7 +1288,12 @@ void port_init(int initnumports)
 #ifdef DEBUGOPT
 	ADDDBGCL(dl);
 #endif
+	// VV 20260427 changed default vlan from 0 to 1
 	if (vlancreate_nocheck(0) != 0) {
+			printlog(LOG_ERR,"ALLOC vlan port data structures");
+			exit(1);
+		}
+	if (vlancreate_nocheck(1) != 0) {
 		printlog(LOG_ERR,"ALLOC vlan port data structures");
 		exit(1);
 	}
