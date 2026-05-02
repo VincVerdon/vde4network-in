@@ -20,8 +20,6 @@
 #include <grp.h>
 #include <pwd.h>
 #include <ctype.h>
-/*#include <limits.h>
-#include <stdint.h>*/
 
 #include <config.h>
 #include <vde.h>
@@ -727,7 +725,7 @@ void handle_in_packet(struct endpoint *ep,  struct packet *packet, int len)
 }
 
 /**************************************** COMMAND MANAGEMENT ****************************************/
-
+/*
 static int showinfo(FILE *fd)
 {
 	printoutc(fd,"Ports = %d",external_numports());
@@ -742,7 +740,7 @@ static int showinfo(FILE *fd)
 #endif
 	return 0;
 }
-
+*/
 
 /*
  * VV 20260304
@@ -840,20 +838,20 @@ static int print_port(FILE *fd,int i,int inclinactive)
 			printoutc(fd, "%02d      %04d      %s    %4lld pkts %8lld bytes   %4lld pkts %8lld bytes",
 				i,
 				portv[i]->vlanuntag,
-				portv[i]->ep?"ACTIVE  ":"INACTIVE",
+				portv[i]->ep?"Active  ":"Inactive",
 				portv[i]->pktsin, portv[i]->bytesin,
 				portv[i]->pktsout, portv[i]->bytesout);
 		} else {
 			printoutc(fd, "%02d      %04d      %s",
 				i,
 				portv[i]->vlanuntag,
-				portv[i]->ep?"ACTIVE  ":"INACTIVE");
+				portv[i]->ep?"Active  ":"Inactive");
 		}
 #else
 		printoutc(fd, "%02d      %04d      %s",
 			i,
 			portv[i]->vlanuntag,
-			portv[i]->ep?"ACTIVE  ":"INACTIVE");
+			portv[i]->ep?"Active  ":"Inactive");
 #endif
 		return 0;
 	} else
@@ -1004,7 +1002,7 @@ static int vlancreate(int vlan)
 static int vlanremove(int vlan)
 {
 	// VV 20260427 changed default vlan from 0 to 1
-	if (vlan >= 4 && vlan < NUMOFVLAN) {
+	if (vlan >= 1 && vlan < NUMOFVLAN) {
 		if (bac_check(validvlan,vlan)) {
 			int i,used=0;
 			ba_FORALL(vlant[vlan].table,numports,used++,i);
@@ -1086,7 +1084,7 @@ static int vlandeltrunkport(char *arg)
 #define STRSTATUS(PN,V) \
 	((ba_check(vlant[(V)].notlearning,(PN))) ? "Discarding" : \
 	 (ba_check(vlant[(V)].bctag,(PN)) || ba_check(vlant[(V)].bcuntag,(PN))) ? \
-	 "Forwarding" : "Learning")
+	 "Forwarding" : "Learning  ")
 
 /* VV
 static void vlanprintactive(int vlan,FILE *fd)
@@ -1160,13 +1158,13 @@ static void vlanprintelem(int vlan,FILE *fd)
 	}
 	int i;
 	printoutc(fd,"VLAN %04d",vlan);
-	printoutc(fd,"Port    Tag           State         Status        ");
+	printoutc(fd,"Port    Mode        State         Status        ");
 	printoutc(fd,"-----------------------------------------------------------");
 	ba_FORALL(vlant[vlan].table,numports,
 			printoutc(fd,"%02d      %s      %s      %s",
 			i,
-			(portv[i]->vlanuntag != vlan)?"TRUNK   ":"untagged", //VV
-			portv[i]->ep?"ACTIVE  ":"INACTIVE",
+			(portv[i]->vlanuntag != vlan)?"TRUNK ":"Access", //VV
+			portv[i]->ep?"Active  ":"Inactive",
 			STRSTATUS(i,vlan)),i);
 	printoutc(fd,"");
 }
@@ -1247,22 +1245,22 @@ char *port_descr(int portno, int epn) {
 //VV 20260228 remove entries - rename vlan/addport to vlan/addtrunkport
 struct comlist cl[]={
 	{"port","============","PORT STATUS MENU",NULL,NOARG},
-	{"port/allocatable","PORT 0/1","Is the port allocatable as unnamed? 1=Y 0=N",portallocatable,STRARG},
 #ifdef VDE_PQ2
 	{"port/defqlen","LEN","set the default queue length for new ports",defqlen,INTARG},
 	{"port/epqlen","PORT ID LEN","set the length of the queue for port N/id IP",epqlen,STRARG},
 #endif
-	{"port/print","[PORT]","print the port table",print_ptableall,STRARG|WITHFILE},
+	/*{"port/setuser","N user","access control: set user",portsetuser,STRARG},*/
 #ifdef PORTCOUNTERS
 	{"port/resetcounter","[PORT]","reset the port (PORT) counters",portresetcounters,STRARG},
 #endif
 	{"port/setvlan","PORT VLAN","set port VLAN (untagged)",portsetvlan,STRARG},
-	{"port/show","","show port info",showinfo,NOARG|WITHFILE},
+	{"port/show","[PORT]","print the port table",print_ptableall,STRARG|WITHFILE},
+	/*{"port/show","","show port info",showinfo,NOARG|WITHFILE},*/
 	{"vlan","============","VLAN MANAGEMENT MENU",NULL,NOARG},
 	{"vlan/addtrunkport","VLAN PORT","add trunk port to the vlan N",vlanaddtrunkport,STRARG},
 	{"vlan/create","VLAN","create the VLAN with tag N",vlancreate,INTARG},
 	{"vlan/deltrunkport","VLAN PORT","del trunk port to the vlan N",vlandeltrunkport,STRARG},
-	{"vlan/print","[VLAN]","print the list of defined vlan",vlanprintall,STRARG|WITHFILE},
+	{"vlan/show","[VLAN]","print the list of defined vlan",vlanprintall,STRARG|WITHFILE},
 	{"vlan/remove","VLAN","remove the VLAN with tag N",vlanremove,INTARG},
 };
 

@@ -2,7 +2,7 @@
  * Copyright V. Verdon - Version 20260308
  * Initial Copyright 2005 Renzo Davoli VDE-2
  * Licensed under the GPLv2 
- * VVerdon version 20260316
+ * VVerdon version 20260428
  */
 
 #include <stdio.h>
@@ -114,6 +114,9 @@ static int helloperiod = STDHELLOPERIOD;
 static int maxage = STDHELLOPERIOD*10;
 static int fst_timerno;
 
+// VV 20260428 add default values var
+static char defaultfwddelay[2] = "00";
+
 /* packet prototype for untagged ports */
 struct fstbpdu {
 	struct ethheader header;
@@ -129,6 +132,7 @@ struct fstbpdu {
 	unsigned char stp_age[2];
 	unsigned char stp_maxage[2];
 	unsigned char stp_hello[2];
+	// Forward delay
 	unsigned char stp_fwddelay[2];
 	unsigned char stp_v1len;
 } __attribute__((packed));;
@@ -308,8 +312,8 @@ static void fst_hello_vlan(int vlan,int now)
 	if (age > 0xffff) age=0xffff;
 	outpacket.stp_age[0] = outtagpacket.stp_age[0]=age;
 	outpacket.stp_age[1] = outtagpacket.stp_age[1]=age>>8;
-	outpacket.stp_fwddelay[0] = outtagpacket.stp_fwddelay[0]=0;
-	outpacket.stp_fwddelay[1] = outtagpacket.stp_fwddelay[1]=0; /* XXX */
+	outpacket.stp_fwddelay[0] = outtagpacket.stp_fwddelay[0] = defaultfwddelay[0];
+	outpacket.stp_fwddelay[1] = outtagpacket.stp_fwddelay[1] = defaultfwddelay[1]; /* XXX */
 	ba_FORALL(fsttab[vlan]->untag,numports,
 			({ if (!(ba_check(fsttab[vlan]->edge,port))) {
 			 outpacket.stp_port[0]=0x80| (port>>4);
@@ -384,8 +388,8 @@ static void fst_sendbpdu(int vlan,int port,int agr,int tc,int tcack)
 		if (age > 0xffff) age=0xffff;
 		outpacket.stp_age[0] = age;
 		outpacket.stp_age[1] = age>>8;
-		outpacket.stp_fwddelay[0] = 0;
-		outpacket.stp_fwddelay[1] = 0; /* XXX */
+		outpacket.stp_fwddelay[0] = defaultfwddelay[0];
+		outpacket.stp_fwddelay[1] = defaultfwddelay[1]; /* XXX */
 		outpacket.stp_port[0]=0x80| (port>>4);
 		outpacket.stp_port[1]=port;
 		outpacket.stp_flags=STP_FLAGS(vlan,port,agr,tc,tcack);
@@ -398,8 +402,8 @@ static void fst_sendbpdu(int vlan,int port,int agr,int tc,int tcack)
 		if (age > 0xffff) age=0xffff;
 		outtagpacket.stp_age[0]=age;
 		outtagpacket.stp_age[1]=age>>8;
-		outtagpacket.stp_fwddelay[0]=0;
-		outtagpacket.stp_fwddelay[1]=0; /* XXX */
+		outtagpacket.stp_fwddelay[0] = defaultfwddelay[0];
+		outtagpacket.stp_fwddelay[1] = defaultfwddelay[1]; /* XXX */
 		outtagpacket.stp_port[0]=0x80| (port>>4);
 		outtagpacket.stp_port[1]=port;
 		outtagpacket.tag_vlan[0]=vlan>>8 & 0xf;
@@ -613,7 +617,7 @@ static void fstinitpkt(void)
 // VV 20260305 some aspect modif + add BID
 static int fstpshowinfo(FILE *fd)
 {
-	printoutc(fd,"STP = %s",(pflag & FSTP_TAG)?"true":"false");
+	printoutc(fd,"STP = %s",(pflag & FSTP_TAG)?"enabled":"disabled");
 	printoutc(fd,"Priority = %d (0x%x)", priority, priority);
 	printoutc(fd,"MAC = %02x:%02x:%02x:%02x:%02x:%02x",
 			switchmac[0], switchmac[1], switchmac[2], switchmac[3], switchmac[4], switchmac[5]);
@@ -690,20 +694,29 @@ static char *decoderole(int vlan, int port)
 
 static void fstprintactive(int vlan,FILE *fd)
 {
+	// VV 20260428 changed default vlan from 0 to 1 - vlan 0 is masked
+	if (vlan == 0) {
+		return;
+	}
+
 	int i;
-	printoutc(fd,"STP DATA VLAN %04d %s %s",vlan,
-			memcmp(myid,fsttab[vlan]->root,SWITCHID_LEN)==0?"ROOTSWITCH":"",
-			((pflag & FSTP_TAG)==0)?"STP IS DISABLED":"");
-	printoutc(fd, " ++ root %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
-			fsttab[vlan]->root[0], fsttab[vlan]->root[1], fsttab[vlan]->root[2], fsttab[vlan]->root[3],
+	printoutc(fd,"STP DATA VLAN %04d",vlan);
+	printoutc(fd,"--------------------------------------------------------------");
+	if (memcmp(myid,fsttab[vlan]->root,SWITCHID_LEN)==0) {
+		printoutc(fd,"IS ROOTSWITCH");
+	} else {
+		printoutc(fd, "ROOTSWITCH %02x:%02x:%02x:%02x:%02x:%02x",
+			fsttab[vlan]->root[2], fsttab[vlan]->root[3],
 			fsttab[vlan]->root[4], fsttab[vlan]->root[5], fsttab[vlan]->root[6], fsttab[vlan]->root[7]);
-	printoutc(fd, " ++ designated %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
-			fsttab[vlan]->dessw[0], fsttab[vlan]->dessw[1], fsttab[vlan]->dessw[2], fsttab[vlan]->dessw[3],
-			fsttab[vlan]->dessw[4], fsttab[vlan]->dessw[5], fsttab[vlan]->dessw[6], fsttab[vlan]->dessw[7]);
-	printoutc(fd, " ++ rootport %04d cost %d age %d bonusport %04d bonuscost %d",
+		printoutc(fd, " ++ root port %04d cost %d age %d bonusport %04d bonuscost %d",
 			fsttab[vlan]->rootport, 
 			nstringtol(fsttab[vlan]->rootcost),
 			qtime()-fsttab[vlan]->roottimestamp,fsttab[vlan]->bonusport,fsttab[vlan]->bonuscost);
+
+	}
+	printoutc(fd, " ++ designated port %02x:%02x:%02x:%02x:%02x:%02x",
+			fsttab[vlan]->dessw[2], fsttab[vlan]->dessw[3],
+			fsttab[vlan]->dessw[4], fsttab[vlan]->dessw[5], fsttab[vlan]->dessw[6], fsttab[vlan]->dessw[7]);
 	ba_FORALL(fsttab[vlan]->untag,numports,
 			printoutc(fd," -- Port %04d tagged=%d portcost=%d role=%s",i,0,port_getcost(i),decoderole(vlan,i)),i);
 	ba_FORALL(fsttab[vlan]->tagged,numports,
@@ -712,21 +725,29 @@ static void fstprintactive(int vlan,FILE *fd)
 	printoutc(fd,"");
 }	
 
-
-static int fstprint(FILE *fd,char *arg)
+/*
+ * Show infos from STP
+ */
+static int fstpshow(FILE *fd,char *arg)
 {
-	if (*arg != 0) {
-		int vlan;
-		vlan=atoi(arg);
-		if (vlan >= 0 && vlan < NUMOFVLAN-1) {
-			if (bac_check(validvlan,vlan))
-				fstprintactive(vlan,fd);
-			else
-				return ENXIO;
+	fstpshowinfo(fd);
+
+	if ((pflag & FSTP_TAG)!=0) {
+		printoutc(fd,"");
+
+		if (*arg != 0) {
+			int vlan;
+			vlan=atoi(arg);
+			if (vlan >= 0 && vlan < NUMOFVLAN-1) {
+				if (bac_check(validvlan,vlan))
+					fstprintactive(vlan,fd);
+				else
+					return ENXIO;
+			} else
+				return EINVAL;
 		} else
-			return EINVAL;
-	} else
-		bac_FORALLFUN(validvlan,NUMOFVLAN,fstprintactive,fd);
+			bac_FORALLFUN(validvlan,NUMOFVLAN,fstprintactive,fd);
+	}
 	return 0;
 }
 
@@ -816,9 +837,9 @@ static struct comlist cl[]={
 	{"stp/enable","0(default)/1","enable STP 0=OFF 1=ON",fstenable,STRARG},
 	{"stp/portcost","VLAN PORT COST","set the port cost for a VLAN",fstsetbonus,STRARG},
 	{"stp/portfast","VLAN PORT 0/1","Define an edge port for a vlan 0=N 1=Y",fstsetedge,STRARG},
-	{"stp/print","[VLAN]","print spanning tree data for the defined vlan",fstprint,STRARG|WITHFILE},
 	{"stp/priority","PRIORITY" ,"set switch priority (value between 0 and 61440",fstsetpriority,STRARG|WITHFILE},
-	{"stp/show","","show STP info",fstpshowinfo,NOARG|WITHFILE},
+	{"stp/show","[VLAN]","show spanning tree data for the defined vlan",fstpshow,STRARG|WITHFILE},
+	/*{"stp/show","","show STP info",fstpshowinfo,NOARG|WITHFILE},*/
 };
 
 int fstflag(int op,int f)
