@@ -383,18 +383,33 @@ static int find_hash(FILE *fd,char *strmac)
 	}
 }
 
+/*
+ * Print MAC table
+ * VV 20260503
+ */
 static void print_hash_entry(struct hash_entry *e, void *arg)
 {
 
 	FILE *pfd=arg;
-	printoutc(pfd,"Hash: %04d Addr: %02x:%02x:%02x:%02x:%02x:%02x VLAN %04d to port: %03d  " 
+	// VV 20260503 - modify print informations
+	printoutc(pfd,"%02x:%02x:%02x:%02x:%02x:%02x      %04d      %02d        %ld s",
+			EMAC2MAC6(e->dst), EMAC2VLAN(e->dst), e->port, qtime() - e->last_seen);
+	/*printoutc(pfd,"Hash: %04d Addr: %02x:%02x:%02x:%02x:%02x:%02x VLAN %04d to port: %03d  "
 			"age %ld secs", calc_hash(e->dst),
-			EMAC2MAC6(e->dst),EMAC2VLAN(e->dst), e->port, qtime() - e->last_seen);
+			EMAC2MAC6(e->dst),EMAC2VLAN(e->dst), e->port, qtime() - e->last_seen);*/
 }
 
+/*
+ * Print MAC table
+ * VV 20260503
+ */
 static int print_hash(FILE *fd)
 {
 	qtime_csenter();
+
+	// VV 20260503
+	printoutc(fd,"MAC                    VLAN      Port      Age  ");
+	printoutc(fd,"-----------------------------------------------------");
 	for_all_hash(print_hash_entry, fd);
 	qtime_csexit();
 	return 0;
@@ -402,10 +417,10 @@ static int print_hash(FILE *fd)
 
 static int showinfo(FILE *fd)
 {
-	//printoutc(fd,"Hash size %d",HASH_SIZE);
-	printoutc(fd,"GC interval %d secs",gc_interval);
-	printoutc(fd,"GC expire %d secs",gc_expire);
-	printoutc(fd,"Min persistence %d secs",min_persistence);
+	printoutc(fd,"MAC table size = %d",HASH_SIZE);
+	//printoutc(fd,"GC interval %d secs",gc_interval);
+	printoutc(fd,"MAC expiration = %d secs",gc_expire);
+	//printoutc(fd,"Min persistence %d secs",min_persistence);
 	printoutc(fd,"");
 	// VV 20260502 - print hash table
 	print_hash(fd);
@@ -415,13 +430,13 @@ static int showinfo(FILE *fd)
 
 static struct comlist cl[]={
 	{"mac","============","HASH TABLE MENU",NULL,NOARG},
-	{"mac/find","MAC VLAN","MAC lookup",find_hash,STRARG|WITHFILE},
+	/*{"mac/find","MAC VLAN","MAC lookup",find_hash,STRARG|WITHFILE},*/
 	/*{"mac/print","","print the hash table",print_hash,NOARG|WITHFILE},*/
-	{"mac/setexpire","N","change hash entries expire time",hash_set_gc_expire,INTARG},
-	{"mac/setgcint","N","change garbage collector interval",hash_set_gc_interval,INTARG},
-	{"mac/setminper","N","minimum persistence time",hash_set_minper,INTARG},
+	{"mac/setexpire","N","change MAC entries expire time",hash_set_gc_expire,INTARG},
+	/*{"mac/setgcint","N","change garbage collector interval",hash_set_gc_interval,INTARG},*/
+	/*{"mac/setminper","N","minimum persistence time",hash_set_minper,INTARG},*/
 	/*{"mac/setsize","N","change hash size",hash_resize,INTARG},*/
-	{"mac/show","","show hash info and table",showinfo,NOARG|WITHFILE},
+	{"mac/show","","show MAC table",showinfo,NOARG|WITHFILE},
 };
 
 /* sets sig_alarm as handler for SIGALRM, and run it a first time */

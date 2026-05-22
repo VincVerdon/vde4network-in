@@ -239,7 +239,9 @@ static int checkport_ac(struct port *port, uid_t user)
 	}
 }
 
-/* initialize a new endpoint */
+/* initialize a new endpoint
+ *
+*/
 struct endpoint *setup_ep(int portno, int fd_ctl, int fd_data, uid_t user,
 		struct mod_support *modfun)
 {
@@ -287,6 +289,8 @@ struct endpoint *setup_ep(int portno, int fd_ctl, int fd_data, uid_t user,
 				ep->next=port->ep;
 				port->ep=ep;
 			}
+			// VV 20260521 - try to configure edge state for the port
+			tryfstsetedge(portno);
 			return ep;
 		}
 		else {
@@ -1305,6 +1309,8 @@ void port_init(int initnumports)
 		//Activated
 		portallocatable(param);
 		free(param);
+		//VV 20260521 - save configuration asked for edge
+		init_edge(i);
 	}
 
 }
@@ -1322,7 +1328,7 @@ int port_menu_init() {
 //VV 20260221
 static int vlanwritevlancreate(int vlan,FILE *fd)
 {
-	if (vlan != 0) {		//Vlan 0 is automatically created
+	if (vlan > 1) {		//Vlan 1 is automatically created
 		printoutc(fd,"vlan/create %d",vlan);
 	}
 	return 0;
@@ -1365,6 +1371,7 @@ int writeportconfig(FILE *fd)
 
 	return 0;
 }
+
 
 //VV 20260303
 int writesethub(FILE *fd)

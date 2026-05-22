@@ -112,6 +112,10 @@ static int send_datasock(int fd_ctl, int fd_data, void *packet, int len, int por
 		(stat((PATH),&s)?-1:s.st_uid); \
 		})
 
+
+/*
+ * Init port when something is connected to
+ */
 static struct endpoint *new_port_v1_v3(int fd_ctl, int type_port,
 		struct sockaddr_un *sun_out)
 {

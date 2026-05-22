@@ -99,6 +99,16 @@ struct vlst {
 	bitarray rcvhist[2];
 };
 
+
+// VV 20260522 - structure to save edge configuration wanted
+static struct edwa {
+	int vlan;
+	int edge;
+};
+static struct edwa edge_wanted[NUMOFVLAN];
+
+
+
 #define BPDUADDR {0x01,0x80,0xc2,0x00,0x00,0x00}
 unsigned char bpduaddrp[]=BPDUADDR;
 #define SETFSTID(ID,MAC,PRIO) ({ \
@@ -700,7 +710,7 @@ static void fstprintactive(int vlan,FILE *fd)
 	}
 
 	int i;
-	printoutc(fd,"STP DATA VLAN %04d",vlan);
+	printoutc(fd,"VLAN %04d STP DATA",vlan);
 	printoutc(fd,"--------------------------------------------------------------");
 	if (memcmp(myid,fsttab[vlan]->root,SWITCHID_LEN)==0) {
 		printoutc(fd,"IS ROOTSWITCH");
@@ -712,11 +722,10 @@ static void fstprintactive(int vlan,FILE *fd)
 			fsttab[vlan]->rootport, 
 			nstringtol(fsttab[vlan]->rootcost),
 			qtime()-fsttab[vlan]->roottimestamp,fsttab[vlan]->bonusport,fsttab[vlan]->bonuscost);
-
+		printoutc(fd, " ++ designated port %02x:%02x:%02x:%02x:%02x:%02x",
+					fsttab[vlan]->dessw[2], fsttab[vlan]->dessw[3],
+					fsttab[vlan]->dessw[4], fsttab[vlan]->dessw[5], fsttab[vlan]->dessw[6], fsttab[vlan]->dessw[7]);
 	}
-	printoutc(fd, " ++ designated port %02x:%02x:%02x:%02x:%02x:%02x",
-			fsttab[vlan]->dessw[2], fsttab[vlan]->dessw[3],
-			fsttab[vlan]->dessw[4], fsttab[vlan]->dessw[5], fsttab[vlan]->dessw[6], fsttab[vlan]->dessw[7]);
 	ba_FORALL(fsttab[vlan]->untag,numports,
 			printoutc(fd," -- Port %04d tagged=%d portcost=%d role=%s",i,0,port_getcost(i),decoderole(vlan,i)),i);
 	ba_FORALL(fsttab[vlan]->tagged,numports,
@@ -811,24 +820,49 @@ static int fstsetpriority(FILE *fd, char *arg)
  * Edge port is portfast in Cisco
  * Disable STP protocol for a port connected to a client
  */
-static int fstsetedge(char *arg)
+int fstsetedge(char *arg)
 {
+	printlog(LOG_INFO, ">>>>fstsetedge %s", arg);
 	int vlan, port, val;
 	if (sscanf(arg,"%i %i %i",&vlan,&port,&val) != 3)
 		return EINVAL;
-	if (vlan <0 || vlan >= NUMOFVLAN || port < 0 || port >= numports)
+	if (vlan <1 || vlan >= NUMOFVLAN || port < 1 || port >= numports)
 		return EINVAL;
 	if (!bac_check(validvlan,vlan))
 		return ENXIO;
 	if (val) {
+		//VV 20260521 - save configuration asked for edge
+		edge_wanted[port].edge = 1;
+		edge_wanted[port].vlan = 1;
 		ba_set(fsttab[vlan]->edge,port);
-		if (ba_check(fsttab[vlan]->untag,port) || ba_check(fsttab[vlan]->untag,port))
+		if (ba_check(fsttab[vlan]->untag,port))
 			port_set_status(port,vlan,FORWARDING);
 	} else {
+		//VV 20260521 - save configuration asked for edge
+		init_edge(port);
 		ba_clr(fsttab[vlan]->edge,port);
 		ba_clr(fsttab[vlan]->backup,port);
 	}
 	return 0;
+}
+
+
+/*
+ * VV 20260521
+ * init edge info for port
+ */
+void init_edge(int port) {
+	edge_wanted[port].edge = 0;
+	edge_wanted[port].vlan = 0;
+}
+
+void tryfstsetedge(int port) {
+	if (edge_wanted[port].edge) {
+		int vlan = edge_wanted[port].vlan;
+		char *val=NULL;
+		asprintf(&val, "%d %d %d", vlan, port, 1);
+		fstsetedge(val);
+	}
 }
 
 
@@ -934,9 +968,9 @@ static int writestpportsconfig(FILE *fd)
 //VV 20260306
 int writefstpconfig(FILE *fd)
 {
-	writestpportsconfig(fd);
 	printoutc(fd,"stp/priority %d ", priority);
 	printoutc(fd,"stp/enable %d ", (pflag & FSTP_TAG));
+	writestpportsconfig(fd);
 	return 0;
 }
 

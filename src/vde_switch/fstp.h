@@ -27,3 +27,5 @@ void fst_init(int initnumports);
 
 // VV functions declaration
 int writefstpconfig(FILE *fd);
+void init_edge(int port);
+void tryfstsetedge(int port);
