@@ -2,7 +2,7 @@
  * Copyright V. Verdon - Version 20260308
  * Initial Copyright 2005 Renzo Davoli VDE-2
  * Licensed under the GPLv2 
- * VVerdon version 20260428
+ * VVerdon version 20260522
  */
 
 #include <stdio.h>
@@ -747,7 +747,7 @@ static int fstpshow(FILE *fd,char *arg)
 		if (*arg != 0) {
 			int vlan;
 			vlan=atoi(arg);
-			if (vlan >= 0 && vlan < NUMOFVLAN-1) {
+			if (vlan >= 1 && vlan < NUMOFVLAN-1) {
 				if (bac_check(validvlan,vlan))
 					fstprintactive(vlan,fd);
 				else
@@ -766,7 +766,7 @@ static int fstsetbonus(char *arg)
 	int vlan, port, cost;
 	if (sscanf(arg,"%i %i %i",&vlan,&port,&cost) != 3)
 		return EINVAL;
-	if (vlan <0 || vlan >= NUMOFVLAN || port < 0 || port >= numports)
+	if (vlan <1 || vlan >= NUMOFVLAN || port < 0 || port >= numports)
 		return EINVAL;
 	if (!bac_check(validvlan,vlan)) 
 		return ENXIO;
@@ -820,9 +820,8 @@ static int fstsetpriority(FILE *fd, char *arg)
  * Edge port is portfast in Cisco
  * Disable STP protocol for a port connected to a client
  */
-int fstsetedge(char *arg)
+static int fstsetedge(char *arg)
 {
-	printlog(LOG_INFO, ">>>>fstsetedge %s", arg);
 	int vlan, port, val;
 	if (sscanf(arg,"%i %i %i",&vlan,&port,&val) != 3)
 		return EINVAL;
@@ -856,6 +855,11 @@ void init_edge(int port) {
 	edge_wanted[port].vlan = 0;
 }
 
+
+/*
+ * VV 20260522
+ * try to activate edge port when port is starting
+ */
 void tryfstsetedge(int port) {
 	if (edge_wanted[port].edge) {
 		int vlan = edge_wanted[port].vlan;

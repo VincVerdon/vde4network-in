@@ -1096,7 +1096,8 @@ static int plugindel(char *arg) {
 
 /* VV
  * Change  with arg value
- * Adapt prompt to new name.
+ * Adapt prompt to new name
+ * Save name in exchange file
  */
 static int setswitchname(char *name)
 {

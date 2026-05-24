@@ -133,6 +133,7 @@ struct {
 	bitarray bctag;
 	bitarray bcuntag;
 	bitarray notlearning;
+	char* name;		//VV 20260522
 } vlant[NUMOFVLAN+1];
 bitarray validvlan;
 
@@ -941,7 +942,7 @@ static int portsetvlan(char *arg)
 	if (sscanf(arg,"%i %i",&port,&vlan) != 2)
 		return EINVAL;
 	/* port NOVLAN is okay here, it means NO untagged traffic */
-	if (vlan <0 || vlan > NUMOFVLAN || port < 0 || port >= numports) 
+	if (vlan <1 || vlan > NUMOFVLAN || port < 0 || port >= numports)
 		return EINVAL;
 	if ((vlan != NOVLAN && !bac_check(validvlan,vlan)) || portv[port] == NULL)
 		return ENXIO;
@@ -971,6 +972,7 @@ static int portsetvlan(char *arg)
 static int vlancreate_nocheck(int vlan)
 {
 	int rv=0;
+	vlant[vlan].name = "";
 	vlant[vlan].table=ba_alloc(numports);
 	vlant[vlan].bctag=ba_alloc(numports);
 	vlant[vlan].bcuntag=ba_alloc(numports);
@@ -1042,7 +1044,7 @@ static int vlanaddtrunkport(char *arg)
 	int port,vlan;
 	if (sscanf(arg,"%i %i",&vlan,&port) != 2)
 		return EINVAL;
-	if (vlan <0 || vlan >= NUMOFVLAN-1 || port < 0 || port >= numports)
+	if (vlan <1 || vlan >= NUMOFVLAN-1 || port < 0 || port >= numports)
 		return EINVAL;
 	if (!bac_check(validvlan,vlan) || portv[port] == NULL)
 		return ENXIO;
@@ -1066,7 +1068,7 @@ static int vlandeltrunkport(char *arg)
 	int port,vlan;
 	if (sscanf(arg,"%i %i",&vlan,&port) != 2)
 		return EINVAL;
-	if (vlan <0 || vlan >= NUMOFVLAN-1 || port < 0 || port >= numports)
+	if (vlan <1 || vlan >= NUMOFVLAN-1 || port < 0 || port >= numports)
 		return EINVAL;
 	if (!bac_check(validvlan,vlan) || portv[port] == NULL)
 		return ENXIO;
@@ -1139,7 +1141,7 @@ static int vlanprint(FILE *fd,char *arg)
 	if (*arg != 0) {
 		int vlan;
 		vlan=atoi(arg);
-		if (vlan >= 0 && vlan < NUMOFVLAN-1) {
+		if (vlan >= 1 && vlan < NUMOFVLAN-1) {
 			if (bac_check(validvlan,vlan))
 				vlanprintactive(vlan,fd);
 			else
@@ -1161,7 +1163,7 @@ static void vlanprintelem(int vlan,FILE *fd)
 		return;
 	}
 	int i;
-	printoutc(fd,"VLAN %04d",vlan);
+	printoutc(fd,"VLAN %04d %s", vlan, vlant[vlan].name);
 	printoutc(fd,"Port    Mode        State         Status        ");
 	printoutc(fd,"-----------------------------------------------------------");
 	ba_FORALL(vlant[vlan].table,numports,
@@ -1246,6 +1248,41 @@ char *port_descr(int portno, int epn) {
 }
 
 
+/*
+ * VV 20260523
+ * Set Vlan name
+ */
+static int vlansetname(char *arg)
+{
+	int ret = 0;
+	int vlan;
+	char name[50];
+	if (sscanf(arg, "%i %s",&vlan,&name) != 2) {
+		return EINVAL;
+	}
+	if (vlan <1 || vlan >= NUMOFVLAN-1 || strlen(name) <1 || strlen(name) >10) {
+		return EINVAL;
+	}
+	if (!bac_check(validvlan,vlan)) {
+		return ENXIO;
+	}
+
+	// Check if the new name is only composed with 0-9 and a-z and A-Z and - characters
+	for (int i=0; i<strlen(name); i++) {
+		if (!(name[i]==45 || (name[i]>=48 && name[i]<=57) ||
+				(name[i]>=65 && name[i]<=90) || (name[i]>=97 && name[i]<=122))) {
+			ret = EINVAL;
+		}
+	}
+
+	if (ret == 0) {
+		//save the new name
+		vlant[vlan].name = strdup(name);
+	}
+	return ret;
+}
+
+
 //VV 20260228 remove entries - rename vlan/addport to vlan/addtrunkport
 struct comlist cl[]={
 	{"port","============","PORT STATUS MENU",NULL,NOARG},
@@ -1264,6 +1301,7 @@ struct comlist cl[]={
 	{"vlan/addtrunkport","VLAN PORT","add trunk port to the vlan N",vlanaddtrunkport,STRARG},
 	{"vlan/create","VLAN","create the VLAN with tag N",vlancreate,INTARG},
 	{"vlan/deltrunkport","VLAN PORT","del trunk port to the vlan N",vlandeltrunkport,STRARG},
+	{"vlan/name","VLAN NAME","set the NAME for VLAN tag N",vlansetname,STRARG},
 	{"vlan/show","[VLAN]","print the list of defined vlan",vlanprintall,STRARG|WITHFILE},
 	{"vlan/remove","VLAN","remove the VLAN with tag N",vlanremove,INTARG},
 };
@@ -1299,6 +1337,8 @@ void port_init(int initnumports)
 		printlog(LOG_ERR,"ALLOC vlan port data structures");
 		exit(1);
 	}
+	//VV 20260523 - Init vlan 1 name
+	vlant[1].name = "default";
 
 	//VV 20260310 - automatic port initialization at start
 	for(int i = 1; i<numports; i++) {
@@ -1329,7 +1369,10 @@ int port_menu_init() {
 static int vlanwritevlancreate(int vlan,FILE *fd)
 {
 	if (vlan > 1) {		//Vlan 1 is automatically created
-		printoutc(fd,"vlan/create %d",vlan);
+		printoutc(fd,"vlan/create %d", vlan);
+	}
+	if ((vlan > 1 && strcmp(vlant[vlan].name, "") != 0) || (vlan == 1 && strcmp(vlant[vlan].name, "default") != 0)) {
+		printoutc(fd,"vlan/name %d %s", vlan, vlant[vlan].name);
 	}
 	return 0;
 }
