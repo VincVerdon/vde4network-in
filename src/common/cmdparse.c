@@ -80,7 +80,7 @@ static enum command searchcommand(char *name)
 		int i;
 		for (i=0; i<NUMCOMMANDS && strcmp(name,commandname[i]) != 0; i++)
 			;
-		if (i<NUMCOMMANDS) 
+		if (i<NUMCOMMANDS)
 			return i;
 		else
 			return ERR;

@@ -4,7 +4,7 @@
  * 2008 Luca Saiu (Marionnet project): a better hub implementation
  * Some minor remain from uml_switch Copyright 2002 Yon Uriarte and Jeff Dike
  * Licensed under the GPLv2 
- * VVerdon version 20260317
+ * VVerdon version 20260531
  */
 
 #include <stdio.h>
@@ -919,18 +919,21 @@ static int portresetcounters(char *arg)
 #endif
 
 /*Transform switch in hub
- * val = 1 >> hub
- * val = 0 >> switch (default value)
+ * val = on >> hub
+ * val = off >> switch (default value)
  */
-int portsethub(int val)
+int portsethub(char *val)
 {
-	if (val) {
+
+	if (strcmp(val, "on") == 0) {
 #ifdef FSTP
 		fstpshutdown();
 #endif
 		portflag(P_SETFLAG,HUB_TAG);
-	} else {
+	} else if (strcmp(val, "off") == 0) {
 		portflag(P_CLRFLAG,HUB_TAG);
+	} else {
+		return EINVAL;
 	}
 	return 0;
 }
@@ -1419,7 +1422,9 @@ int writeportconfig(FILE *fd)
 //VV 20260303
 int writesethub(FILE *fd)
 {
-	printoutc(fd,"sethub %s",(pflag & HUB_TAG)?"1":"0");
+	if (pflag & HUB_TAG) {
+		printoutc(fd, "sethub on");
+	}
 	return 0;
 }
 

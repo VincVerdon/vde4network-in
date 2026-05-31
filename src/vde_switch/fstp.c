@@ -2,7 +2,7 @@
  * Copyright V. Verdon - Version 20260308
  * Initial Copyright 2005 Renzo Davoli VDE-2
  * Licensed under the GPLv2 
- * VVerdon version 20260522
+ * VVerdon version 20260531
  */
 
 #include <stdio.h>
@@ -654,17 +654,11 @@ void fstpshutdown(void)
 
 
 /*
- * VV 20260316 - renamed function fstponoff and add null parameter test
+ * VV 20260531 - add null parameter test
  */
-static int fstenable(char *arg)
+static int fstponoff(int val)
 {
-	int val;
 	int ret = 0;
-	if (strcmp(arg, "") != 0) {
-		val = atoi(arg);
-	} else {
-		ret = EINVAL;
-	}
 
 	int oldval=((pflag & FSTP_TAG) != 0);
 	if (portflag(P_GETFLAG, HUB_TAG)){
@@ -688,6 +682,15 @@ static int fstenable(char *arg)
 	return ret;
 }
 
+
+static int fstpoff() {
+	return(fstponoff(0));
+}
+
+
+static int fstpon() {
+	return(fstponoff(1));
+}
 
 static char *decoderole(int vlan, int port)
 {
@@ -822,25 +825,29 @@ static int fstsetpriority(FILE *fd, char *arg)
  */
 static int fstsetedge(char *arg)
 {
-	int vlan, port, val;
-	if (sscanf(arg,"%i %i %i",&vlan,&port,&val) != 3)
+	int vlan, port;
+	char val[50];
+
+	if (sscanf(arg,"%i %i %s",&vlan,&port,&val) != 3)
 		return EINVAL;
 	if (vlan <1 || vlan >= NUMOFVLAN || port < 1 || port >= numports)
 		return EINVAL;
 	if (!bac_check(validvlan,vlan))
 		return ENXIO;
-	if (val) {
+	if (strcmp(val, "on") == 0) {
 		//VV 20260521 - save configuration asked for edge
 		edge_wanted[port].edge = 1;
 		edge_wanted[port].vlan = 1;
 		ba_set(fsttab[vlan]->edge,port);
 		if (ba_check(fsttab[vlan]->untag,port))
 			port_set_status(port,vlan,FORWARDING);
-	} else {
+	} else if (strcmp(val, "off") == 0) {
 		//VV 20260521 - save configuration asked for edge
 		init_edge(port);
 		ba_clr(fsttab[vlan]->edge,port);
 		ba_clr(fsttab[vlan]->backup,port);
+	} else {
+		return EINVAL;
 	}
 	return 0;
 }
@@ -864,7 +871,7 @@ void tryfstsetedge(int port) {
 	if (edge_wanted[port].edge) {
 		int vlan = edge_wanted[port].vlan;
 		char *val=NULL;
-		asprintf(&val, "%d %d %d", vlan, port, 1);
+		asprintf(&val, "%d %d %s", vlan, port, "on");
 		fstsetedge(val);
 	}
 }
@@ -872,9 +879,10 @@ void tryfstsetedge(int port) {
 
 static struct comlist cl[]={
 	{"stp","============","RAPID SPANNING TREE MENU",NULL,NOARG},
-	{"stp/enable","0(default)/1","enable STP 0=OFF 1=ON",fstenable,STRARG},
+	{"stp/disable","","disable STP",fstpoff,NOARG},
+	{"stp/enable","","enable STP",fstpon,NOARG},
 	{"stp/portcost","VLAN PORT COST","set the port cost for a VLAN",fstsetbonus,STRARG},
-	{"stp/portfast","VLAN PORT 0/1","Define an edge port for a vlan 0=N 1=Y",fstsetedge,STRARG},
+	{"stp/portfast","VLAN PORT on/off","Define or cancel an edge port for a vlan",fstsetedge,STRARG},
 	{"stp/priority","PRIORITY" ,"set switch priority (value between 0 and 61440",fstsetpriority,STRARG|WITHFILE},
 	{"stp/show","[VLAN]","show spanning tree data for the defined vlan",fstpshow,STRARG|WITHFILE},
 	/*{"stp/show","","show STP info",fstpshowinfo,NOARG|WITHFILE},*/
@@ -946,7 +954,7 @@ static int writestpportsconf(int vlan,FILE *fd)
 */
 	//write portfast conf
 	ba_FORALL(fsttab[vlan]->edge,numports,
-		printoutc(fd, "stp/portfast %d %d 1", vlan, i),
+		printoutc(fd, "stp/portfast %d %d on", vlan, i),
 		i);
 
 	//write portcost conf
@@ -973,7 +981,12 @@ static int writestpportsconfig(FILE *fd)
 int writefstpconfig(FILE *fd)
 {
 	printoutc(fd,"stp/priority %d ", priority);
-	printoutc(fd,"stp/enable %d ", (pflag & FSTP_TAG));
+	if (pflag & FSTP_TAG) {
+		printoutc(fd,"stp/enable");
+	} else {
+		printoutc(fd,"stp/disable");
+	}
+
 	writestpportsconfig(fd);
 	return 0;
 }

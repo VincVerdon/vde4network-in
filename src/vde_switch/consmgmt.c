@@ -4,7 +4,7 @@
  * 2007 co-authors Ludovico Gardenghi, Filippo Giunchedi, Luca Bigliardi
  * --pidfile/-p and cleanup management by Mattia Belletti (C) 2004.
  * Licensed under the GPLv2
- * VVerdon version 20260317
+ * VVerdon version 20260531
  */
 
 #define _GNU_SOURCE
@@ -325,7 +325,7 @@ static int help(FILE *fd,char *arg)
 {
 	struct comlist *p;
 	int n=strlen(arg);
-	printoutc(fd,"%-18s %-15s %s","COMMAND PATH","SYNTAX","HELP");
+	printoutc(fd,"%-18s %-15s %s","COMMAND PATH","ARGUMENTS","HELP");
 	printoutc(fd,"%-18s %-15s %s","------------","--------------","------------");
 	for (p=clh;p!=NULL;p=p->next)
 		if (strncmp(p->path,arg,n) == 0) 
@@ -386,6 +386,7 @@ static int handle_cmd(int type,int fd,char *inbuf)
 
 		if (rv == 0) {
 			printoutc(f,"1000 Success");
+			printoutc(f,"1000 ");
 			//VV 20251212
 			//printlog(LOG_INFO,"Success command");
 
@@ -460,6 +461,7 @@ static int savescript(char *path)
 		writevlanconfig(f);
 		writeportconfig(f);
 		writefstpconfig(f);
+		writesethub(f);
 		fclose(f);
 		//printoutc(fd, "Configuration saved");
 	} else {
@@ -478,7 +480,7 @@ int savenamefile()
 	if (pidfile) {
 		FILE *f;
 		asprintf(&namefile, "%s/%s", dirname(strdup(pidfile)), "hostname");
-		printlog(LOG_INFO, "Name file creation =  %s", namefile);
+		printlog(LOG_INFO, "Write switch name in file %s", namefile);
 		f=fopen(namefile,"w");
 		if (f) {
 			printoutc(f, switchname);
@@ -827,7 +829,7 @@ static int showinfo(FILE *fd)
 	printoutc(fd,"MAC = %02x:%02x:%02x:%02x:%02x:%02x",
 			switchmac[0], switchmac[1], switchmac[2], switchmac[3], switchmac[4], switchmac[5]);
 	printoutc(fd,"Ports = %d", get_ports_number());
-	printoutc(fd,"HUB = %s",(get_hub_state()==1)?"true":"false");
+	printoutc(fd,"HUB = %s",(get_hub_state()==1)?"on":"off");
 	printoutc(fd,"PID = %d ", getpid());
 	printoutc(fd,"Uptime = %d", qtime());
 
@@ -1134,7 +1136,7 @@ static struct comlist cl[]={
 	{"load","PATH","load a configuration script",runscript,STRARG|WITHFILE},
 	{"logout","","logout from this mgmt terminal",vde_logout,NOARG},
 	{"save","[PATH]","save configuration in file (default file path if not completed)",savescript,STRARG},
-	{"sethub","0(default)/1","enable hub mode 0=switch 1=hub",portsethub,INTARG},
+	{"sethub","off(default)/on","enable or disable hub mode",portsethub,STRARG},
 	{"show","","show switch version and more info",showinfo,NOARG|WITHFILE},
 	{"shutdown","","shutdown of the switch",vde_shutdown,NOARG},
 #ifdef DEBUGOPT
@@ -1197,7 +1199,6 @@ int writemainconfig(FILE *fd)
 	printoutc(fd,"# File generated at %s", datetime);
 	printoutc(fd,"");
 	printoutc(fd,"hostname %s",switchname);
-	writesethub(fd);
 
 	return 0;
 }
