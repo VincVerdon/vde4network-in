@@ -1,4 +1,6 @@
-/* Copyright 2002 Renzo Davoli 
+/* VDE4Network-Inc is forked from VDE2 and adapted for Network-In! Simulator project
+ * Copyright V. Verdon - Version 20260301
+ * Initial Copyright 2005 Renzo Davoli VDE-2
  * Licensed under the GPL
  * Modified by Ludovico Gardenghi 2005
  */
@@ -277,7 +279,8 @@ static void netusage() {
 }
 
 static void usage(char *progname) {
-	fprintf (stderr,"Usage: %s [-p portnum] [-g group] [-m mod] socketname\n\n",progname);
+	//VV 20260620 - Add D. Do nothing, juste for compatibility with linux.uml !
+	fprintf (stderr,"Usage: %s [-p portnum] [-g group] [-m mod] [-D descr] socketname\n\n",progname);
 	exit(-1);
 }
 
@@ -306,12 +309,15 @@ int main(int argc, char **argv)
 				{"vdesock", 1, 0, 's'},
 				{"unix", 1, 0, 's'},
 				{"port", 1, 0, 'p'},
-				{"help",0,0,'h'},
-				{"mod",1,0,'m'},
-				{"group",1,0,'g'},
+				{"help", 0, 0, 'h'},
+				{"mod", 1, 0, 'm'},
+				{"mod2", 1, 0, 'm'},
+				{"group", 1, 0, 'g'},
+				{"descr", 1, 0, 'D'},
 				{0, 0, 0, 0}
 			};
-			c = GETOPT_LONG (argc, argv, "hc:p:s:m:g:l",
+			//VV 20260620 - Add D. Do nothing, juste for compatibility with linux.uml !
+			c = GETOPT_LONG (argc, argv, "hc:p:s:m:g:l:D",
 					long_options, &option_index);
 			if (c == -1)
 				break;
@@ -340,6 +346,10 @@ int main(int argc, char **argv)
 
 				case 'h':
 					usage(argv[0]); //implies exit
+					break;
+
+				case 'D':
+					//VV 20260620 - Do nothing, juste for compatibility with linux.uml !
 					break;
 
 				case 's':
